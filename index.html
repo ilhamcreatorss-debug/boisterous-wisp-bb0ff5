@@ -1,0 +1,2566 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Liquid Glass Dictionary</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Naskh+Arabic:wght@400;600;700&display=swap');
+        
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-highlight: rgba(255, 255, 255, 0.15);
+        }
+        
+        * { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+            letter-spacing: -0.01em;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body { 
+            background: #000000; 
+            color: #ffffff; 
+            overflow: hidden; 
+            height: 100vh;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(147, 51, 234, 0.1) 0%, transparent 50%);
+            touch-action: pan-y;
+            display: flex;
+            flex-direction: row; /* Default Desktop ke samping */
+        }
+        
+        /* Mobile Responsive Base */
+        @media (max-width: 768px) {
+            body { 
+                font-size: 14px; 
+                flex-direction: column; /* FIX LAYOUT: Mobile ke bawah */
+            }
+            .sidebar {
+                width: 100% !important;
+                position: fixed !important;
+                z-index: 9999 !important;
+                transform: translateX(-100%);
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                top: 0; left: 0; height: 100vh;
+            }
+            .sidebar.mobile-open { transform: translateX(0); }
+            .main-content { width: 100%; margin-left: 0; }
+            .mobile-overlay {
+                display: none; position: fixed; inset: 0;
+                background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);
+                z-index: 9998; opacity: 0; transition: opacity 0.3s;
+            }
+            .mobile-overlay.active { display: block; opacity: 1; }
+            .typing-display { font-size: 20px !important; padding: 20px !important; min-height: 160px !important; }
+            .stat-value { font-size: 24px !important; }
+            .word-title { font-size: 16px !important; }
+        }
+        
+        /* Liquid Glass Effects */
+        .liquid-glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(40px) saturate(180%);
+            -webkit-backdrop-filter: blur(40px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 0 var(--glass-highlight);
+        }
+        
+        .liquid-glass-strong {
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(60px) saturate(200%);
+            -webkit-backdrop-filter: blur(60px) saturate(200%);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+        }
+        
+        /* --- MODERN MODAL SYSTEM --- */
+        .modal-overlay-bg {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .modal-overlay-bg.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-box {
+            background: linear-gradient(135deg, rgba(30, 30, 30, 0.98), rgba(15, 15, 15, 0.99));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            width: 100%;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+            transform: translateY(20px) scale(0.95);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .modal-overlay-bg.show .modal-box {
+            transform: translateY(0) scale(1);
+        }
+
+        .modal-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        @media (max-width: 768px) {
+            .modal-overlay-bg {
+                padding: 10px;
+                align-items: flex-end; /* Menempel di bawah pada layar mobile */
+            }
+            .modal-box {
+                max-height: 85vh;
+                border-radius: 24px 24px 16px 16px;
+                transform: translateY(100%);
+            }
+            .modal-overlay-bg.show .modal-box {
+                transform: translateY(0);
+            }
+        }
+        
+        .app-window { width: 100%; } /* Kompatibilitas untuk script lama */
+        /* --- END MODERN MODAL SYSTEM --- */
+        
+        /* Sidebar */
+        .sidebar { 
+            width: 300px; 
+            flex-shrink: 0; 
+            border-right: 1px solid var(--glass-border);
+            z-index: 100;
+        }
+        
+        /* Navigation Tabs */
+        .nav-tab {
+            position: relative;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .nav-tab:hover {
+            color: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .nav-tab.active {
+            color: white;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.2));
+            border-color: rgba(59, 130, 246, 0.4);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+        
+        /* Main Content */
+        .main-content { 
+            flex: 1; 
+            overflow-y: auto; 
+            position: relative;
+            -webkit-overflow-scrolling: touch;
+            min-width: 0;
+        }
+        
+        /* Word List Item */
+        .word-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            margin-bottom: 8px;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+        
+        @media (max-width: 768px) {
+            .word-item { margin-bottom: 12px; border-radius: 12px; }
+            .word-summary { padding: 16px !important; }
+        }
+        
+        .word-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateX(4px);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+        }
+        
+        .word-item.active {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1));
+            border-color: rgba(59, 130, 246, 0.4);
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.2);
+        }
+        
+        .word-summary {
+            padding: 20px 24px; display: flex; align-items: center;
+            justify-content: space-between; gap: 16px;
+        }
+        
+        .word-title { font-size: 18px; font-weight: 700; color: #ffffff; letter-spacing: -0.02em; }
+        .word-pron { font-size: 13px; color: #60a5fa; font-weight: 500; opacity: 0.8; }
+        .word-meaning { font-size: 14px; color: rgba(255, 255, 255, 0.5); font-weight: 500; margin-top: 2px; }
+        
+        /* Icon Buttons */
+        .icon-btn {
+            width: 40px; height: 40px; border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.3s; color: rgba(255, 255, 255, 0.4); flex-shrink: 0;
+        }
+        
+        @media (max-width: 768px) { .icon-btn { width: 44px; height: 44px; } }
+        
+        .icon-btn:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); color: white; transform: scale(1.05); }
+        .icon-btn.active { background: rgba(251, 191, 36, 0.2); border-color: rgba(251, 191, 36, 0.5); color: #fbbf24; box-shadow: 0 0 15px rgba(251, 191, 36, 0.3); }
+        
+        /* Details Section */
+        .word-details { max-height: 0; overflow: hidden; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); border-top: 1px solid transparent; }
+        .word-item.active .word-details { max-height: 500px; padding: 0 24px 24px 24px; border-top-color: rgba(255, 255, 255, 0.1); }
+        
+        @media (max-width: 768px) { .word-item.active .word-details { padding: 0 16px 16px 16px; } }
+        
+        .details-inner { background: rgba(0, 0, 0, 0.2); border-radius: 12px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.05); }
+        
+        /* Tags */
+        .tag-pill { 
+            display: inline-flex; padding: 6px 12px; border-radius: 20px; font-size: 11px; 
+            font-weight: 600; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.7); transition: all 0.3s;
+        }
+        .tag-pill:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); }
+        
+        /* Form Elements */
+        .input-glass {
+            width: 100%; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px; padding: 12px 16px; color: white; font-size: 14px; transition: all 0.3s; outline: none;
+        }
+        
+        @media (max-width: 768px) { .input-glass { font-size: 16px; padding: 14px; } }
+        
+        .input-glass:focus { border-color: rgba(59, 130, 246, 0.5); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); background: rgba(0, 0, 0, 0.4); }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(37, 99, 235, 0.8));
+            border: 1px solid rgba(59, 130, 246, 0.5); color: white; padding: 12px 20px;
+            border-radius: 12px; font-weight: 600; cursor: pointer; transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3); white-space: nowrap; font-size: 14px;
+        }
+        @media (max-width: 768px) { .btn-primary { padding: 14px 20px; font-size: 15px; } }
+        
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5); border-color: rgba(59, 130, 246, 0.8); }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.8); padding: 12px 20px; border-radius: 12px;
+            font-weight: 600; cursor: pointer; transition: all 0.3s; font-size: 14px;
+        }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); }
+        .btn-danger { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: rgba(239, 68, 68, 0.9); }
+        .btn-danger:hover { background: rgba(239, 68, 68, 0.2); box-shadow: 0 0 15px rgba(239, 68, 68, 0.3); }
+        
+        /* Folder Item */
+        .folder-item {
+            display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px;
+            cursor: pointer; transition: all 0.3s; margin-bottom: 4px; border: 1px solid transparent;
+        }
+        .folder-item:hover { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.1); }
+        .folder-item.active {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(147, 51, 234, 0.1));
+            border-color: rgba(59, 130, 246, 0.4); box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+        }
+        
+        /* Typing Dojo Styles */
+        .typing-display {
+            font-size: 28px; line-height: 1.6; min-height: 240px; padding: 40px;
+            background: rgba(0, 0, 0, 0.2); border-radius: 24px; border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative; overflow-wrap: break-word; word-wrap: break-word;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5); cursor: text;
+        }
+        
+        @media (max-width: 768px) { .typing-display { font-size: 20px !important; padding: 24px !important; min-height: 160px !important; } }
+        
+        .typing-display:focus-within { border-color: rgba(59, 130, 246, 0.5); box-shadow: 0 0 30px rgba(59, 130, 246, 0.1), inset 0 2px 4px rgba(0, 0, 0, 0.5); }
+        .typing-display.rtl { direction: rtl; text-align: right; font-family: 'Noto Naskh Arabic', serif; }
+        
+        .char { position: relative; padding: 2px; border-radius: 6px; transition: all 0.15s; }
+        .char.correct { color: #4ade80; text-shadow: 0 0 10px rgba(74, 222, 128, 0.5); }
+        .char.wrong { color: #f87171; background: rgba(239, 68, 68, 0.15); text-decoration: line-through; text-decoration-color: rgba(239, 68, 68, 0.6); }
+        .char.current { background: rgba(59, 130, 246, 0.3); color: white; box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); animation: pulse 1.5s infinite; }
+        
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px; padding: 24px 32px; text-align: center; min-width: 120px; transition: all 0.3s;
+        }
+        @media (max-width: 768px) { .stat-card { min-width: auto; padding: 16px 12px; flex: 1; } .stat-value { font-size: 24px !important; } .stat-label { font-size: 11px; } }
+        .stat-card:hover { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.15); transform: translateY(-2px); }
+        .stat-value {
+            font-size: 36px; font-weight: 800; background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1; text-shadow: 0 0 30px rgba(96, 165, 250, 0.3);
+        }
+        
+        .progress-bar-glass { height: 6px; background: rgba(255, 255, 255, 0.05); border-radius: 3px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.05); }
+        .progress-fill-glass { height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); box-shadow: 0 0 10px rgba(59, 130, 246, 0.5); transition: width 0.3s ease; }
+        
+        /* Quiz Overlay */
+        .quiz-overlay { 
+            position: fixed; inset: 0; background: rgba(0, 0, 0, 0.98); 
+            backdrop-filter: blur(20px); z-index: 5000; display: none; flex-direction: column; 
+        }
+        .quiz-overlay.active { display: flex; }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+        
+        /* Utilities */
+        .hidden { display: none !important; }
+        .fade-in { animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Mobile Header */
+        .mobile-header { display: none; width: 100%; flex-shrink: 0; z-index: 50; }
+        @media (max-width: 768px) {
+            .mobile-header {
+                display: flex; height: 56px; align-items: center; padding: 0 16px;
+                border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
+            }
+            .desktop-only { display: none !important; }
+        }
+        
+        /* Export/Import specific styles */
+        .export-btn {
+            display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 16px;
+            background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);
+            cursor: pointer; transition: all 0.3s; text-align: left; width: 100%; margin-bottom: 12px;
+        }
+        .export-btn:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.15); transform: translateX(4px); }
+        .export-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+        .export-json .export-icon { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .export-csv .export-icon { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+        .export-excel .export-icon { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .export-anki .export-icon { background: rgba(147, 51, 234, 0.2); color: #a78bfa; }
+        .import-btn .export-icon { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+        .export-title { font-weight: 600; color: rgba(255, 255, 255, 0.9); font-size: 14px; margin-bottom: 2px; }
+        .export-desc { font-size: 12px; color: rgba(255, 255, 255, 0.4); }
+        .drop-zone { border: 2px dashed rgba(255, 255, 255, 0.2); border-radius: 16px; padding: 40px; text-align: center; transition: all 0.3s; cursor: pointer; }
+        .drop-zone:hover, .drop-zone.dragover { border-color: rgba(59, 130, 246, 0.5); background: rgba(59, 130, 246, 0.05); }
+        .file-input-hidden { display: none; }
+        @media (max-width: 768px) { .export-btn { padding: 12px; } .drop-zone { padding: 24px; } }
+
+        /* Source Buttons */
+        .source-btn { padding: 10px 20px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.6); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.3s; white-space: nowrap; }
+        .source-btn:hover { background: rgba(255, 255, 255, 0.1); color: white; }
+        .source-btn.active { background: rgba(59, 130, 246, 0.2); border-color: rgba(59, 130, 246, 0.5); color: #60a5fa; }
+
+        /* Language Buttons */
+        .lang-btn { padding: 8px 16px; border-radius: 10px; font-size: 12px; font-weight: 700; transition: all 0.3s; cursor: pointer; border: 1px solid rgba(255, 255, 255, 0.1); background: transparent; color: rgba(255, 255, 255, 0.6); }
+        .lang-btn.active { background: rgba(255, 255, 255, 0.1); color: white; border-color: rgba(255, 255, 255, 0.3); }
+
+        /* Note Cards */
+        .note-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 20px; padding: 24px; cursor: pointer; transition: all 0.3s; }
+        .note-card:hover { background: rgba(255, 255, 255, 0.06); transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.3); }
+        .note-card.active { border-color: rgba(59, 130, 246, 0.5); background: rgba(59, 130, 246, 0.1); }
+
+        /* Karaoke Word */
+        .karaoke-word { cursor: pointer; padding: 2px 4px; border-radius: 4px; transition: all 0.2s; }
+        .karaoke-word:hover { background: rgba(255, 255, 255, 0.1); }
+        .karaoke-word.active { color: #60a5fa; text-shadow: 0 0 10px rgba(96, 165, 250, 0.5); }
+
+        /* Sentence Block */
+        .sentence-block { padding: 16px; border-radius: 16px; transition: all 0.3s; }
+        .sentence-block.active { background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); }
+
+        /* Toast Notification */
+        .toast-notification {
+            position: fixed; bottom: 100px; right: 20px; background: rgba(20, 20, 20, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(20px); padding: 16px 24px;
+            border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); z-index: 10002;
+            transform: translateY(100px); opacity: 0; transition: all 0.3s ease;
+        }
+        .toast-notification.show { transform: translateY(0); opacity: 1; }
+
+        /* Empty State */
+        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; text-align: center; color: rgba(255, 255, 255, 0.3); }
+        .empty-icon { width: 80px; height: 80px; margin-bottom: 24px; opacity: 0.2; }
+
+        /* Modal Overlay */
+        .modal-overlay { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); }
+
+        /* Quiz Card */
+        .quiz-card { transition: all 0.3s; }
+        .option-btn { transition: all 0.2s; }
+        .option-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    </style>
+</head>
+<body class="h-screen text-sm selection:bg-blue-500 selection:text-white">
+
+    <!-- Mobile Menu Overlay -->
+    <div class="mobile-overlay" id="mobileOverlay" onclick="toggleMobileSidebar()"></div>
+
+    <!-- Mobile Header -->
+    <div class="mobile-header">
+        <button onclick="toggleMobileSidebar()" class="icon-btn mr-3" aria-label="Menu">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        </button>
+        <span class="font-bold text-lg" id="mobileTitle">Dictionary</span>
+        <div class="ml-auto flex gap-2">
+            <button onclick="openWindow('settings')" class="icon-btn" aria-label="Settings">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar liquid-glass flex flex-col h-full" id="sidebar">
+        <div class="p-5 border-b border-white/10 flex justify-between items-center">
+            <div>
+                <h1 class="font-bold text-lg tracking-tight text-white/90">Dictionary</h1>
+                <p class="text-xs text-white/40 mt-1 font-medium">Audio & Typing</p>
+            </div>
+            <button onclick="toggleMobileSidebar()" class="icon-btn desktop-only" aria-label="Close">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        
+        <div class="flex p-2 gap-1 border-b border-white/10">
+            <div class="nav-tab active flex-1" onclick="switchMode('dictionary')" id="tab-dictionary">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                <span>Kamus</span>
+            </div>
+            <div class="nav-tab flex-1" onclick="switchMode('notes')" id="tab-notes">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                <span>Notes</span>
+            </div>
+            <div class="nav-tab flex-1" onclick="switchMode('typing')" id="tab-typing">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                <span>Typing</span>
+            </div>
+        </div>
+        
+        <!-- Dictionary Sidebar -->
+        <div id="sidebar-dictionary" class="flex-1 overflow-y-auto p-3 space-y-1">
+            <div class="flex justify-between items-center mb-3 px-2">
+                <div class="text-xs font-bold text-white/30 uppercase tracking-wider">Folders</div>
+                <button onclick="createFolder()" class="text-xs bg-white/5 hover:bg-white/10 text-white/60 px-3 py-1.5 rounded-lg transition-all border border-white/10 hover:border-white/20">
+                    + New
+                </button>
+            </div>
+            <div id="folderList" class="space-y-1"></div>
+        </div>
+        
+        <!-- Notes Sidebar -->
+        <div id="sidebar-notes" class="hidden flex-1 overflow-y-auto p-3 flex flex-col">
+            <div class="flex justify-between items-center mb-3 px-2">
+                <div class="text-xs font-bold text-white/30 uppercase tracking-wider">Collections</div>
+                <button onclick="createNoteFolder()" class="text-xs bg-white/5 hover:bg-white/10 text-white/60 px-3 py-1.5 rounded-lg transition-all border border-white/10">+ New</button>
+            </div>
+            <div id="noteFolderList" class="space-y-1 flex-1 overflow-y-auto mb-3"></div>
+            <div class="border-t border-white/10 pt-3 px-2">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="text-xs font-bold text-white/30 uppercase tracking-wider">Notes</div>
+                    <button onclick="openNoteEditor()" id="btnAddNote" class="text-xs bg-white/5 text-white/40 px-3 py-1.5 rounded-lg opacity-50 cursor-not-allowed" disabled>+ Add</button>
+                </div>
+                <div id="notesListInFolder" class="space-y-1 max-h-48 overflow-y-auto"></div>
+            </div>
+        </div>
+
+        <!-- Typing Sidebar -->
+        <div id="sidebar-typing" class="hidden flex-1 overflow-y-auto p-3 flex flex-col gap-4">
+            <div class="liquid-glass-strong rounded-xl p-4">
+                <div class="text-xs font-bold text-white/30 uppercase tracking-wider mb-4">Daily Stats</div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="text-center p-3 bg-black/20 rounded-xl border border-white/5">
+                        <div class="text-2xl font-bold text-blue-400" id="typingTotalChars">0</div>
+                        <div class="text-[10px] text-white/40 uppercase mt-1">Chars</div>
+                    </div>
+                    <div class="text-center p-3 bg-black/20 rounded-xl border border-white/5">
+                        <div class="text-2xl font-bold text-green-400" id="typingAccuracy">0%</div>
+                        <div class="text-[10px] text-white/40 uppercase mt-1">Accuracy</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="liquid-glass rounded-xl p-4 flex-1">
+                <div class="text-xs font-bold text-white/30 uppercase tracking-wider mb-3">History</div>
+                <div id="typingHistory" class="space-y-2 text-xs">
+                    <div class="text-white/30 text-center italic py-4">No sessions yet</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Button - Desktop Only -->
+        <div class="p-4 border-t border-white/10 desktop-only">
+            <button onclick="openWindow('settings')" class="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-xs font-semibold text-white/70 hover:text-white">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                Data Settings
+            </button>
+        </div>
+        
+        <div class="p-4 border-t border-white/10 text-[10px] text-white/30 text-center font-medium">
+            <span id="globalStats">0 folders • 0 notes</span>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content relative" id="mainContent">
+        
+        <!-- Dictionary View -->
+        <div id="view-dictionary" class="h-full flex flex-col">
+            <div class="h-16 border-b border-white/10 flex items-center justify-between px-6 liquid-glass sticky top-0 z-10">
+                <div class="flex items-center gap-4 overflow-x-auto no-scrollbar">
+                    <h2 id="currentFolderName" class="text-lg font-bold text-white/90 whitespace-nowrap">Select Folder</h2>
+                    <span id="wordCountBadge" class="hidden px-3 py-1 rounded-full bg-white/5 text-white/60 text-xs font-semibold border border-white/10 whitespace-nowrap">0</span>
+                    <span id="dueBadge" class="hidden px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-xs font-semibold border border-purple-500/30 cursor-pointer hover:bg-purple-500/30 transition-all whitespace-nowrap" onclick="openQuizSelector()">0 due</span>
+                </div>
+                <div class="flex items-center gap-3 overflow-x-auto no-scrollbar" id="dictToolbar" style="display:none;">
+                    <div class="flex bg-black/20 rounded-xl p-1 border border-white/5 flex-shrink-0">
+                        <button onclick="setFilter('all')" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-white/10 text-white transition-all whitespace-nowrap" id="btn-filter-all">All</button>
+                        <button onclick="setFilter('favorites')" class="px-4 py-1.5 rounded-lg text-xs font-semibold text-white/40 hover:text-white transition-all" id="btn-filter-fav">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
+                        </button>
+                    </div>
+                    <input type="text" id="searchInput" placeholder="Search..." class="input-glass w-48 py-2 text-xs" oninput="renderWords()">
+                    <button onclick="openWordModal()" class="btn-primary text-xs py-2">Add Word</button>
+                    <button onclick="openQuizSelector()" class="btn-secondary text-xs py-2 bg-purple-500/10 border-purple-500/30 text-purple-300 hover:bg-purple-500/20">Quiz</button>
+                    <button onclick="deleteCurrentFolder()" class="icon-btn btn-danger" title="Delete Folder">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="tagFilterBar" class="hidden border-b border-white/10 px-6 py-3 bg-black/20">
+                <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                    <span class="text-xs text-white/40 whitespace-nowrap uppercase tracking-wider">Tags:</span>
+                    <div id="tagCloud" class="flex gap-2"></div>
+                    <button onclick="clearTagFilter()" class="text-xs text-red-400/80 hover:text-red-400 ml-2 hidden" id="clearTagBtn">Clear</button>
+                </div>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-6">
+                <div id="emptyState" class="empty-state">
+                    <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"></path></svg>
+                    <p class="text-lg font-semibold text-white/60">Select a folder to begin</p>
+                    <p class="text-sm text-white/40 mt-2">Create a new folder from the sidebar</p>
+                </div>
+                <div id="wordsList" class="max-w-3xl mx-auto hidden space-y-2"></div>
+            </div>
+        </div>
+
+        <!-- Notes View -->
+        <div id="view-notes" class="hidden h-full flex flex-col">
+            <div class="h-16 border-b border-white/10 flex items-center justify-between px-6 liquid-glass sticky top-0 z-10">
+                <div class="flex items-center gap-3">
+                    <h2 id="currentNoteFolderName" class="text-lg font-bold text-white/90">Select Folder</h2>
+                    <span id="noteCountBadge" class="hidden px-3 py-1 rounded-full bg-white/5 text-white/60 text-xs font-semibold border border-white/10">0</span>
+                </div>
+                <div class="flex items-center gap-2" id="notesToolbar" style="display:none;">
+                    <button onclick="openNoteEditor()" class="btn-primary text-xs">New Note</button>
+                    <button onclick="deleteCurrentNoteFolder()" class="icon-btn btn-danger" title="Delete Folder">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6" id="notesContainer">
+                <div id="notesEmptyState" class="empty-state">
+                    <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    <p class="text-lg font-semibold text-white/60">Select a collection</p>
+                </div>
+                <div id="notesListView" class="grid grid-cols-1 lg:grid-cols-2 gap-4 hidden"></div>
+                
+                <!-- Note Player -->
+                <div id="notePlayerView" class="hidden max-w-4xl mx-auto fade-in">
+                    <button onclick="closeNotePlayer()" class="mb-4 text-white/40 hover:text-white flex items-center gap-2 text-sm transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                        Back to list
+                    </button>
+                    <div class="liquid-glass-strong rounded-3xl p-8 mb-6">
+                        <div class="flex justify-between items-start mb-6">
+                            <div>
+                                <h3 id="playerNoteTitle" class="text-2xl font-bold text-white/90 mb-1"></h3>
+                                <p class="text-sm text-white/40" id="playerNoteMeta"></p>
+                            </div>
+                            <div class="flex gap-2 flex-wrap justify-end">
+                                <button onclick="openTranslationEditor()" class="btn-secondary text-xs">Translate</button>
+                                <button onclick="openSyncEditor()" class="btn-secondary text-xs">Sync</button>
+                                <button onclick="editCurrentNote()" class="icon-btn">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                </button>
+                                <button onclick="deleteCurrentNote()" class="icon-btn btn-danger">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mb-6 liquid-glass rounded-2xl p-4">
+                            <div class="flex items-center gap-4 mb-3">
+                                <audio id="mainAudio" controls class="flex-1 rounded-lg opacity-80" style="height: 40px;"></audio>
+                                <button onclick="toggleLoop()" id="loopBtn" class="icon-btn">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                </button>
+                            </div>
+                            <div class="flex justify-between items-center text-xs text-white/40">
+                                <span id="currentTime">0:00 / 0:00</span>
+                                <div class="flex gap-3">
+                                    <span id="syncStatusIndicator"></span>
+                                    <span id="translationStatusIndicator"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="sentencesContainer" class="space-y-3 max-h-[60vh] overflow-y-auto pr-2"></div>
+                    </div>
+                </div>
+
+                <!-- Sync Editor -->
+                <div id="syncEditorView" class="hidden max-w-4xl mx-auto fade-in">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-4">
+                            <button onclick="closeSyncEditor()" class="text-white/40 hover:text-white flex items-center gap-2 text-sm">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                                Back
+                            </button>
+                            <h3 class="text-lg font-bold text-white/80">Sync Editor</h3>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="resetSyncData()" class="btn-secondary text-xs btn-danger">Reset</button>
+                            <button onclick="saveSyncAndClose()" class="btn-primary text-xs">Save</button>
+                        </div>
+                    </div>
+                    <div class="liquid-glass rounded-2xl p-6 mb-6">
+                        <audio id="syncEditorAudio" controls class="w-full rounded-lg mb-4" style="height: 40px;"></audio>
+                        <div class="text-xs text-white/40 text-center">Click words while audio plays to timestamp</div>
+                    </div>
+                    <div class="liquid-glass rounded-2xl p-6">
+                        <div id="syncEditorDisplay" class="text-lg leading-loose select-none"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Typing Dojo View -->
+        <div id="view-typing" class="hidden h-full flex flex-col overflow-y-auto">
+            <div class="h-16 border-b border-white/10 flex items-center justify-between px-6 liquid-glass sticky top-0 z-10">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-lg font-bold text-white/90">Typing Dojo</h2>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="flex gap-1 bg-black/20 p-1 rounded-xl border border-white/5">
+                        <button onclick="setTypingLang('en')" class="lang-btn active" id="lang-en">US</button>
+                        <button onclick="setTypingLang('id')" class="lang-btn" id="lang-id">ID</button>
+                        <button onclick="setTypingLang('ar')" class="lang-btn" id="lang-ar">AR</button>
+                        <button onclick="setTypingLang('de')" class="lang-btn" id="lang-de">DE</button>
+                    </div>
+                    <button onclick="resetTypingSession()" class="icon-btn" aria-label="Reset">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex-1 p-4 md:p-8">
+                <div class="max-w-4xl mx-auto">
+                    <!-- Source Selector -->
+                    <div class="flex justify-center mb-8 overflow-x-auto no-scrollbar">
+                        <div class="flex gap-2 p-1 bg-black/20 rounded-2xl border border-white/5">
+                            <button class="source-btn active" onclick="setTypingSource('dictionary')" id="btn-source-dict">Dictionary</button>
+                            <button class="source-btn" onclick="setTypingSource('notes')" id="btn-source-notes">Notes</button>
+                            <button class="source-btn" onclick="setTypingSource('custom')" id="btn-source-custom">Custom</button>
+                        </div>
+                    </div>
+
+                    <!-- Custom Input -->
+                    <div id="customTextPanel" class="hidden max-w-2xl mx-auto mb-8 fade-in">
+                        <textarea id="customTypingText" class="input-glass min-h-[120px] text-base" placeholder="Enter your text here..." oninput="updateCustomText()"></textarea>
+                        <div class="flex justify-between items-center mt-3">
+                            <span class="text-xs text-white/40" id="customCharCount">0 characters</span>
+                            <button onclick="startCustomTyping()" class="btn-primary text-xs px-6">Start</button>
+                        </div>
+                    </div>
+
+                    <!-- Stats -->
+                    <div class="flex justify-center gap-2 md:gap-4 mb-6 overflow-x-auto no-scrollbar pb-2">
+                        <div class="stat-card">
+                            <div class="stat-value" id="wpmDisplay">0</div>
+                            <div class="stat-label text-xs text-white/40 uppercase">WPM</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="accuracyDisplay">100%</div>
+                            <div class="stat-label text-xs text-white/40 uppercase">Accuracy</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="progressDisplay">0%</div>
+                            <div class="stat-label text-xs text-white/40 uppercase">Progress</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value text-white/60" id="timeDisplay">0s</div>
+                            <div class="stat-label text-xs text-white/40 uppercase">Time</div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="progress-bar-glass mb-8">
+                        <div class="progress-fill-glass" id="progressFill" style="width: 0%"></div>
+                    </div>
+
+                    <!-- Typing Area -->
+                    <div class="typing-display mb-6 cursor-text" id="typingDisplay" onclick="focusTyping()">
+                        <input type="text" id="hiddenTypingInput" class="absolute opacity-0 pointer-events-none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                        <div id="textDisplay" class="text-white/30"></div>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="flex justify-center gap-3 flex-wrap">
+                        <button onclick="generateNewText()" class="btn-primary">New Text</button>
+                        <button onclick="repeatCurrentText()" class="btn-secondary">Repeat</button>
+                        <select id="typingLength" class="input-glass w-40 text-xs py-2.5" onchange="generateNewText()">
+                            <option value="short">Short</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="long">Long</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quiz Overlay -->
+        <div id="quizOverlay" class="quiz-overlay">
+            <div class="flex items-center justify-between h-16 px-6 border-b border-white/10 liquid-glass">
+                <div class="flex items-center gap-4">
+                    <button onclick="closeQuiz()" class="text-white/40 hover:text-white font-semibold text-sm flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        Close
+                    </button>
+                    <div class="h-6 w-px bg-white/10"></div>
+                    <span class="font-bold text-white/80" id="quizTitle">Quiz</span>
+                </div>
+                <div class="flex items-center gap-6 text-sm">
+                    <div class="text-white/40"><span id="quizProgress" class="font-bold text-white">1/10</span></div>
+                    <div class="text-green-400 font-bold" id="quizStreakDisplay">0</div>
+                </div>
+            </div>
+            <div class="flex-1 flex items-center justify-center p-6" id="quizContent"></div>
+        </div>
+
+        <!-- Completion Modal -->
+        <div id="completionModal" class="fixed inset-0 modal-overlay hidden items-center justify-center z-[6000] p-4">
+            <div class="liquid-glass rounded-3xl p-8 max-w-md w-full text-center fade-in border border-white/20">
+                <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                    <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+                <h2 class="text-2xl font-bold mb-2 text-white/90">Completed</h2>
+                <p class="text-white/40 mb-8">Great practice session</p>
+                <div class="grid grid-cols-2 gap-4 mb-8">
+                    <div class="liquid-glass rounded-2xl p-4">
+                        <div class="text-3xl font-bold text-blue-400 mb-1" id="finalWPM">0</div>
+                        <div class="text-xs text-white/40 uppercase">WPM</div>
+                    </div>
+                    <div class="liquid-glass rounded-2xl p-4">
+                        <div class="text-3xl font-bold text-green-400 mb-1" id="finalAccuracy">0%</div>
+                        <div class="text-xs text-white/40 uppercase">Accuracy</div>
+                    </div>
+                </div>
+                <button onclick="closeCompletion(); generateNewText();" class="btn-primary w-full">Continue</button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Container for Windows -->
+    <div id="windowContainer"></div>
+
+    <!-- Popup Container -->
+    <div id="popupContainer"></div>
+
+    <script>
+        // MODAL SYSTEM
+        let windows = {};
+
+        function createWindow(id, title, content, options = {}) {
+            const modalId = `modal-${id}-${Date.now()}`;
+            
+            const existingModal = document.querySelector(`.modal-${id}`);
+            if (existingModal) closeWindowById(existingModal.id);
+
+            const modalWrapper = document.createElement('div');
+            modalWrapper.id = modalId;
+            modalWrapper.className = `modal-overlay-bg modal-${id}`;
+            
+            const maxWidth = options.width || '500px';
+
+            modalWrapper.innerHTML = `
+                <div class="modal-box w-full mx-auto" style="max-width: ${maxWidth}">
+                    <div class="modal-header">
+                        <div class="font-bold text-lg text-white/90 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                            ${title}
+                        </div>
+                        <button type="button" onclick="closeWindowById('${modalId}')" class="p-2 bg-white/5 hover:bg-red-500/20 text-white/50 hover:text-red-400 rounded-xl transition-all">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                    <div class="modal-body app-window" id="${modalId}-content">
+                        ${content}
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('windowContainer').appendChild(modalWrapper);
+            windows[modalId] = { id: modalId, refId: id, element: modalWrapper };
+
+            requestAnimationFrame(() => {
+                modalWrapper.classList.add('show');
+            });
+
+            modalWrapper.addEventListener('mousedown', (e) => {
+                if (e.target === modalWrapper) closeWindowById(modalId);
+            });
+
+            return modalId;
+        }
+
+        function closeWindowById(id) {
+            if (!id) return;
+            let modalId = typeof id === 'string' ? id.replace('-content', '') : id;
+            let modal = document.getElementById(modalId);
+            
+            if (typeof id === 'object' && id.closest) {
+                modal = id.closest('.modal-overlay-bg');
+                if (modal) modalId = modal.id;
+            }
+
+            if (modal && modal.classList.contains('modal-overlay-bg')) {
+                modal.classList.remove('show');
+                setTimeout(() => {
+                    modal.remove();
+                    delete windows[modalId];
+                }, 300);
+            }
+        }
+
+        function minimizeWindow() {}
+        function restoreWindow() {}
+        function toggleMaximizeWindow() {}
+        function focusWindow() {}
+        function focusWindowByElement() {}
+        function startDrag() {}
+        function onDragMove() {}
+        function onDragEnd() {}
+
+        // Mobile Sidebar Toggle
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            
+            if (sidebar.classList.contains('mobile-open')) {
+                sidebar.classList.remove('mobile-open');
+                overlay.classList.remove('active');
+                document.body.style.overflow = '';
+            } else {
+                sidebar.classList.add('mobile-open');
+                overlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeSidebarOnMobile() {
+            if (window.innerWidth <= 768) {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('mobileOverlay');
+                sidebar.classList.remove('mobile-open');
+                overlay.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        }
+
+        function updateMobileTitle(title) {
+            document.getElementById('mobileTitle').textContent = title;
+        }
+
+        // STATE
+        let folders = JSON.parse(localStorage.getItem('kamusFolders')) ||[{id: 'f1', name: 'General', words: []}];
+        let noteFolders = JSON.parse(localStorage.getItem('kamusNoteFolders')) ||[{id: 'nf1', name: 'General', notes: []}];
+        let activeFolderId = null;
+        let activeNoteFolderId = null;
+        let activeNoteId = null;
+        let currentMode = 'dictionary';
+        let currentFilter = 'all';
+        let currentTagFilter = null;
+        let expandedWordId = null;
+        let quizQueue =[], quizIndex = 0, quizStreak = 0, quizMode = null;
+        let currentNoteData = null;
+        let wordTimings = {};
+        let tempSyncData = {};
+        let tempTranslations =[];
+        let editingWordId = null;
+        let editingNoteId = null;
+        let tempAudioBase64 = null;
+        let isLoopEnabled = false;
+        let pendingImportData = null;
+
+        // TYPING STATE
+        let typingState = {
+            currentText: '',
+            userInput: '',
+            currentIndex: 0,
+            errors: 0,
+            startTime: null,
+            timerInterval: null,
+            isActive: false,
+            source: 'dictionary',
+            lang: 'en',
+            history: JSON.parse(localStorage.getItem('typingHistory')) ||[],
+            stats: JSON.parse(localStorage.getItem('typingStats')) || { totalChars: 0, correctChars: 0, sessions: 0 }
+        };
+
+        function init() {
+            renderFolders();
+            renderNoteFolders();
+            updateGlobalStats();
+            if (folders.length > 0 && !activeFolderId) selectFolder(folders[0].id);
+            if (noteFolders.length > 0 && !activeNoteFolderId) selectNoteFolder(noteFolders[0].id);
+            setInterval(updateKaraokeHighlight, 100);
+            initTyping();
+
+            document.addEventListener('click', (e) => {
+                if (window.innerWidth <= 768) {
+                    const sidebar = document.getElementById('sidebar');
+                    const hamburger = document.querySelector('.mobile-header button');
+                    if (!sidebar.contains(e.target) && hamburger && !hamburger.contains(e.target)) {
+                        closeSidebarOnMobile();
+                    }
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    const sidebar = document.getElementById('sidebar');
+                    if (sidebar.classList.contains('mobile-open')) {
+                        closeSidebarOnMobile();
+                    } else {
+                        const modals = document.querySelectorAll('.modal-overlay-bg.show');
+                        if (modals.length > 0) {
+                            closeWindowById(modals[modals.length - 1].id);
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateGlobalStats() {
+            const totalWords = folders.reduce((a,f) => a + f.words.length, 0);
+            const totalNotes = noteFolders.reduce((a,f) => a + f.notes.length, 0);
+            document.getElementById('globalStats').textContent = `${folders.length} folders • ${totalNotes} notes`;
+        }
+
+        function switchMode(mode) {
+            currentMode = mode;['dictionary', 'notes', 'typing'].forEach(m => {
+                document.getElementById(`tab-${m}`).classList.toggle('active', mode === m);
+                document.getElementById(`view-${m}`).classList.toggle('hidden', mode !== m);
+                document.getElementById(`sidebar-${m}`).classList.toggle('hidden', mode !== m);
+            });
+            
+            const titles = { dictionary: 'Dictionary', notes: 'Notes', typing: 'Typing Dojo' };
+            updateMobileTitle(titles[mode]);
+            closeSidebarOnMobile();
+            
+            if (mode === 'notes' && activeNoteFolderId) renderNotesInFolder();
+            if (mode === 'typing') {
+                setTimeout(focusTyping, 100);
+                updateTypingStats();
+            }
+        }
+
+        function openWindow(type) {
+            if (type === 'settings') {
+                const content = `
+                    <div class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <button onclick="exportData('json')" class="export-btn export-json">
+                                <div class="export-icon">{ }</div>
+                                <div>
+                                    <div class="export-title">Export JSON</div>
+                                    <div class="export-desc">Full backup all data</div>
+                                </div>
+                            </button>
+                            <button onclick="exportData('csv')" class="export-btn export-csv">
+                                <div class="export-icon">CSV</div>
+                                <div>
+                                    <div class="export-title">Export CSV</div>
+                                    <div class="export-desc">Dictionary words table</div>
+                                </div>
+                            </button>
+                            <button onclick="exportData('excel')" class="export-btn export-excel">
+                                <div class="export-icon">XLS</div>
+                                <div>
+                                    <div class="export-title">Export Excel</div>
+                                    <div class="export-desc">Spreadsheet format</div>
+                                </div>
+                            </button>
+                            <button onclick="exportData('anki')" class="export-btn export-anki">
+                                <div class="export-icon">A</div>
+                                <div>
+                                    <div class="export-title">Export Anki</div>
+                                    <div class="export-desc">Flashcard format</div>
+                                </div>
+                            </button>
+                        </div>
+
+                        <div class="border-t border-white/10 pt-6">
+                            <h4 class="text-sm font-bold text-white/60 uppercase tracking-wider mb-4">Import Data</h4>
+                            <div class="drop-zone mb-4" onclick="document.getElementById('importFileInput-${type}').click()" ondrop="handleFileDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+                                <svg class="w-12 h-12 mx-auto mb-3 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                                <p class="text-sm text-white/60 mb-1">Click or drag file here</p>
+                                <p class="text-xs text-white/40">Supports JSON, CSV, TXT</p>
+                            </div>
+                            <input type="file" id="importFileInput-${type}" class="file-input-hidden" accept=".json,.csv,.txt" onchange="handleFileImport(this)">
+                            
+                            <div id="importPreview-settings" class="hidden liquid-glass rounded-xl p-4 mb-4">
+                                <div class="text-xs text-white/40 mb-2">Preview:</div>
+                                <div id="importPreviewContent-settings" class="text-sm text-white/80 max-h-32 overflow-y-auto font-mono"></div>
+                            </div>
+
+                            <div class="flex gap-3">
+                                <button onclick="importData()" id="btnConfirmImport-settings" class="flex-1 btn-primary opacity-50 cursor-not-allowed" disabled>Import Data</button>
+                                <button onclick="clearImportPreview()" class="btn-secondary">Clear</button>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-white/10 mt-6 pt-6">
+                            <h4 class="text-sm font-bold text-red-400/80 uppercase tracking-wider mb-4">Danger Zone</h4>
+                            <button onclick="clearAllData()" class="w-full p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all text-sm font-semibold">
+                                Delete All Data
+                            </button>
+                        </div>
+                    </div>
+                `;
+                createWindow('settings', 'Data Management', content, { width: '600px' });
+            }
+        }
+
+        // TYPING FUNCTIONS
+        function initTyping() {
+            updateTypingStats();
+            renderTypingHistory();
+            generateNewText();
+            
+            const hiddenInput = document.getElementById('hiddenTypingInput');
+            hiddenInput.addEventListener('input', handleTypingInput);
+            
+            hiddenInput.addEventListener('focus', () => {
+                setTimeout(() => {
+                    const display = document.getElementById('typingDisplay');
+                    display.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
+            });
+        }
+
+        function setTypingSource(source) {
+            typingState.source = source;
+            document.querySelectorAll('.source-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-source-${source === 'dictionary' ? 'dict' : source}`).classList.add('active');
+            
+            if (source === 'custom') {
+                document.getElementById('customTextPanel').classList.remove('hidden');
+                document.getElementById('typingDisplay').classList.add('hidden');
+                document.querySelector('.progress-bar-glass').classList.add('hidden');
+                document.querySelector('.stat-card').parentElement.classList.add('hidden');
+            } else {
+                document.getElementById('customTextPanel').classList.add('hidden');
+                document.getElementById('typingDisplay').classList.remove('hidden');
+                document.querySelector('.progress-bar-glass').classList.remove('hidden');
+                document.querySelector('.stat-card').parentElement.classList.remove('hidden');
+                generateNewText();
+            }
+        }
+
+        function setTypingLang(lang) {
+            typingState.lang = lang;
+            document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`lang-${lang}`).classList.add('active');
+            
+            const display = document.getElementById('typingDisplay');
+            if (lang === 'ar') display.classList.add('rtl');
+            else display.classList.remove('rtl');
+            
+            generateNewText();
+        }
+
+        function generateNewText() {
+            let texts =[];
+            const length = document.getElementById('typingLength').value;
+            
+            if (typingState.source === 'dictionary') {
+                const allWords = folders.flatMap(f => f.words).filter(w => !w.lang || w.lang === typingState.lang);
+                if (allWords.length > 0) {
+                    const shuffled = shuffle([...allWords]).slice(0, length === 'short' ? 5 : length === 'medium' ? 10 : 20);
+                    texts = shuffled.map(w => w.word);
+                }
+            } else if (typingState.source === 'notes') {
+                const allNotes = noteFolders.flatMap(f => f.notes).filter(n => !n.lang || n.lang === typingState.lang);
+                if (allNotes.length > 0) {
+                    const sentences = allNotes.flatMap(n => splitIntoSentences(n.content));
+                    texts = shuffle(sentences).slice(0, length === 'short' ? 1 : length === 'medium' ? 2 : 4);
+                }
+            }
+            
+            if (texts.length === 0) {
+                texts = getFallbackTexts(typingState.lang, length);
+            }
+            
+            typingState.currentText = texts.join(typingState.lang === 'ar' ? '، ' : '. ');
+            if (!/[.!?۔؟]$/.test(typingState.currentText)) {
+                typingState.currentText += typingState.lang === 'ar' ? '۔' : '.';
+            }
+            
+            resetTypingState();
+            renderText();
+        }
+
+        function getFallbackTexts(lang, length) {
+            const count = length === 'short' ? 10 : length === 'medium' ? 25 : 50;
+            const fallbacks = {
+                en:["The quick brown fox jumps over the lazy dog", "Practice makes perfect", "Knowledge is power"],
+                id:["Belajar setiap hari membawa kesuksesan", "Ilmu adalah cahaya yang menerangi", "Tekunlah dalam mencapai tujuan"],
+                ar:["العلم نور والجهل ظلام", "التعلم يفتح الأبواب المغلقة", "المثابرة تجلب النجاح"],
+                de:["Übung macht den Meister", "Wissen ist Macht", "Geduld bringt Rosen"]
+            };
+            let result =[];
+            const base = fallbacks[lang] || fallbacks.en;
+            while (result.length < count) result = result.concat(base);
+            return result.slice(0, count);
+        }
+
+        function renderText() {
+            const container = document.getElementById('textDisplay');
+            container.innerHTML = '';
+            const chars = typingState.currentText.split('');
+            chars.forEach((char, index) => {
+                const span = document.createElement('span');
+                span.className = 'char pending';
+                span.textContent = char;
+                span.id = `char-${index}`;
+                container.appendChild(span);
+            });
+        }
+
+        function handleTypingInput(e) {
+            if (!typingState.isActive && e.target.value.length > 0) {
+                startTypingTimer();
+            }
+            
+            const val = e.target.value;
+            const prevLen = typingState.userInput.length;
+            
+            if (val.length < prevLen) {
+                typingState.userInput = val;
+            } else {
+                const newChar = val.slice(-1);
+                const expectedChar = typingState.currentText[typingState.userInput.length];
+                if (newChar !== expectedChar) typingState.errors++;
+                typingState.userInput = val;
+            }
+            
+            if (typingState.userInput.length > typingState.currentText.length) {
+                typingState.userInput = typingState.userInput.slice(0, typingState.currentText.length);
+                e.target.value = typingState.userInput;
+            }
+            
+            updateCharClasses();
+            updateLiveStats();
+            
+            if (typingState.userInput.length === typingState.currentText.length) {
+                completeTyping();
+            }
+        }
+
+        function updateCharClasses() {
+            const chars = typingState.currentText.split('');
+            chars.forEach((char, index) => {
+                const el = document.getElementById(`char-${index}`);
+                if (!el) return;
+                el.className = 'char';
+                
+                if (index < typingState.userInput.length) {
+                    if (typingState.userInput[index] === char) el.classList.add('correct');
+                    else el.classList.add('wrong');
+                } else if (index === typingState.userInput.length) {
+                    el.classList.add('current');
+                } else {
+                    el.classList.add('pending');
+                }
+            });
+            
+            const currentEl = document.querySelector('.char.current');
+            if (currentEl) {
+                currentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        function focusTyping() {
+            if (typingState.source !== 'custom' || document.getElementById('customTextPanel').classList.contains('hidden')) {
+                document.getElementById('hiddenTypingInput').focus();
+            }
+        }
+
+        function startTypingTimer() {
+            typingState.isActive = true;
+            typingState.startTime = Date.now();
+            typingState.timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - typingState.startTime) / 1000);
+                document.getElementById('timeDisplay').textContent = elapsed + 's';
+                updateWPM();
+            }, 1000);
+        }
+
+        function updateWPM() {
+            if (!typingState.startTime) return;
+            const minutes = (Date.now() - typingState.startTime) / 60000;
+            if (minutes === 0) return;
+            const words = typingState.userInput.length / 5;
+            const wpm = Math.round(words / minutes);
+            document.getElementById('wpmDisplay').textContent = wpm;
+        }
+
+        function updateLiveStats() {
+            const progress = (typingState.userInput.length / typingState.currentText.length) * 100;
+            document.getElementById('progressDisplay').textContent = Math.round(progress) + '%';
+            document.getElementById('progressFill').style.width = progress + '%';
+            
+            const total = typingState.userInput.length;
+            const correct = total - typingState.errors;
+            const accuracy = total === 0 ? 100 : Math.round((correct / total) * 100);
+            document.getElementById('accuracyDisplay').textContent = accuracy + '%';
+            
+            updateWPM();
+        }
+
+        function completeTyping() {
+            clearInterval(typingState.timerInterval);
+            typingState.isActive = false;
+            
+            const totalChars = typingState.currentText.length;
+            const accuracy = Math.round(((totalChars - typingState.errors) / totalChars) * 100);
+            const timeElapsed = (Date.now() - typingState.startTime) / 60000;
+            const wpm = Math.round((totalChars / 5) / timeElapsed) || 0;
+            
+            const session = {
+                date: new Date().toISOString(),
+                wpm: wpm,
+                accuracy: accuracy,
+                chars: totalChars,
+                lang: typingState.lang,
+                source: typingState.source
+            };
+            typingState.history.unshift(session);
+            if (typingState.history.length > 50) typingState.history.pop();
+            localStorage.setItem('typingHistory', JSON.stringify(typingState.history));
+            
+            typingState.stats.totalChars += totalChars;
+            typingState.stats.correctChars += (totalChars - typingState.errors);
+            typingState.stats.sessions++;
+            localStorage.setItem('typingStats', JSON.stringify(typingState.stats));
+            
+            updateTypingStats();
+            renderTypingHistory();
+            
+            document.getElementById('finalWPM').textContent = wpm;
+            document.getElementById('finalAccuracy').textContent = accuracy + '%';
+            document.getElementById('completionModal').classList.remove('hidden');
+            document.getElementById('completionModal').classList.add('flex');
+        }
+
+        function closeCompletion() {
+            document.getElementById('completionModal').classList.add('hidden');
+            document.getElementById('completionModal').classList.remove('flex');
+        }
+
+        function resetTypingState() {
+            clearInterval(typingState.timerInterval);
+            typingState.userInput = '';
+            typingState.currentIndex = 0;
+            typingState.errors = 0;
+            typingState.startTime = null;
+            typingState.isActive = false;
+            document.getElementById('hiddenTypingInput').value = '';
+            
+            document.getElementById('wpmDisplay').textContent = '0';
+            document.getElementById('accuracyDisplay').textContent = '100%';
+            document.getElementById('progressDisplay').textContent = '0%';
+            document.getElementById('timeDisplay').textContent = '0s';
+            document.getElementById('progressFill').style.width = '0%';
+        }
+
+        function resetTypingSession() {
+            resetTypingState();
+            renderText();
+            focusTyping();
+        }
+
+        function repeatCurrentText() {
+            resetTypingState();
+            renderText();
+            focusTyping();
+        }
+
+        function updateTypingStats() {
+            document.getElementById('typingTotalChars').textContent = typingState.stats.totalChars.toLocaleString();
+            const acc = typingState.stats.sessions === 0 ? 0 : Math.round((typingState.stats.correctChars / typingState.stats.totalChars) * 100) || 0;
+            document.getElementById('typingAccuracy').textContent = acc + '%';
+        }
+
+        function renderTypingHistory() {
+            const container = document.getElementById('typingHistory');
+            if (typingState.history.length === 0) {
+                container.innerHTML = '<div class="text-white/30 text-center italic py-4">No sessions yet</div>';
+                return;
+            }
+            
+            container.innerHTML = typingState.history.slice(0, 10).map(h => {
+                const date = new Date(h.date);
+                const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                const langs = { en: 'US', id: 'ID', ar: 'AR', de: 'DE' };
+                return `
+                    <div class="flex justify-between items-center p-3 bg-black/20 rounded-xl border border-white/5">
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs font-bold text-white/30">${langs[h.lang] || 'US'}</span>
+                            <span class="text-white/40 text-xs">${timeStr}</span>
+                        </div>
+                        <div class="flex gap-3 text-xs">
+                            <span class="text-blue-400 font-bold">${h.wpm}</span>
+                            <span class="text-green-400">${h.accuracy}%</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateCustomText() {
+            const text = document.getElementById('customTypingText').value;
+            document.getElementById('customCharCount').textContent = text.length + ' characters';
+        }
+
+        function startCustomTyping() {
+            const text = document.getElementById('customTypingText').value.trim();
+            if (!text) return;
+            typingState.currentText = text;
+            document.getElementById('customTextPanel').classList.add('hidden');
+            document.getElementById('typingDisplay').classList.remove('hidden');
+            document.querySelector('.progress-bar-glass').classList.remove('hidden');
+            document.querySelector('.stat-card').parentElement.classList.remove('hidden');
+            resetTypingState();
+            renderText();
+            focusTyping();
+        }
+
+        // DICTIONARY FUNCTIONS
+        function renderFolders() {
+            const el = document.getElementById('folderList');
+            el.innerHTML = '';
+            folders.forEach(f => {
+                const div = document.createElement('div');
+                div.className = `folder-item ${f.id === activeFolderId ? 'active' : ''}`;
+                div.onclick = () => { selectFolder(f.id); closeSidebarOnMobile(); };
+                const due = getDueWords(f.id).length;
+                div.innerHTML = `
+                    <svg class="w-5 h-5 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${f.id === activeFolderId ? 'M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z' : 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z'}"></path></svg>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-semibold text-sm text-white/90 truncate">${f.name}</div>
+                        <div class="text-xs text-white/40">${f.words.length} words${due ? ` • <span class="text-purple-400">${due} due</span>` : ''}</div>
+                    </div>
+                `;
+                el.appendChild(div);
+            });
+        }
+
+        function createFolder() {
+            const name = prompt('Folder name:');
+            if (!name || !name.trim()) return;
+            const newFolder = { id: 'f' + Date.now(), name: name.trim(), words:[] };
+            folders.push(newFolder);
+            saveFolders();
+            renderFolders();
+            selectFolder(newFolder.id);
+            showToast('Folder created');
+        }
+
+        function selectFolder(id) {
+            activeFolderId = id;
+            expandedWordId = null;
+            const f = folders.find(x => x.id === id);
+            document.getElementById('currentFolderName').textContent = f.name;
+            document.getElementById('wordCountBadge').textContent = f.words.length;
+            document.getElementById('wordCountBadge').classList.remove('hidden');
+            document.getElementById('dictToolbar').style.display = 'flex';
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('wordsList').classList.remove('hidden');
+            renderFolders();
+            renderTagFilters();
+            renderWords();
+            updateDueBadge();
+        }
+
+        function deleteCurrentFolder() {
+            if (folders.length <= 1) return alert('Minimum 1 folder required');
+            const folder = folders.find(f => f.id === activeFolderId);
+            if (!confirm(`Delete "${folder.name}" and ${folder.words.length} words?`)) return;
+            folders = folders.filter(f => f.id !== activeFolderId);
+            saveFolders();
+            activeFolderId = null;
+            renderFolders();
+            location.reload();
+        }
+
+        function saveFolders() { localStorage.setItem('kamusFolders', JSON.stringify(folders)); }
+
+        function renderNoteFolders() {
+            const el = document.getElementById('noteFolderList');
+            el.innerHTML = '';
+            noteFolders.forEach(f => {
+                const div = document.createElement('div');
+                div.className = `folder-item ${f.id === activeNoteFolderId ? 'active' : ''}`;
+                div.onclick = () => { selectNoteFolder(f.id); closeSidebarOnMobile(); };
+                div.innerHTML = `
+                    <svg class="w-5 h-5 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-semibold text-sm text-white/90 truncate">${f.name}</div>
+                        <div class="text-xs text-white/40">${f.notes.length} notes</div>
+                    </div>
+                `;
+                el.appendChild(div);
+            });
+        }
+
+        function selectNoteFolder(id) {
+            activeNoteFolderId = id;
+            activeNoteId = null;
+            const folder = noteFolders.find(f => f.id === id);
+            document.getElementById('currentNoteFolderName').textContent = folder.name;
+            document.getElementById('noteCountBadge').textContent = folder.notes.length;
+            document.getElementById('noteCountBadge').classList.remove('hidden');
+            document.getElementById('notesToolbar').style.display = 'flex';
+            document.getElementById('notesEmptyState').classList.add('hidden');
+            document.getElementById('notesListView').classList.remove('hidden');
+            const btnAdd = document.getElementById('btnAddNote');
+            btnAdd.disabled = false;
+            btnAdd.classList.remove('opacity-50', 'cursor-not-allowed');
+            renderNoteFolders();
+            renderNotesInFolder();
+            updateGlobalStats();
+        }
+
+        function createNoteFolder() {
+            const name = prompt('Collection name:');
+            if (!name || !name.trim()) return;
+            const newFolder = { id: 'nf' + Date.now(), name: name.trim(), notes:[] };
+            noteFolders.push(newFolder);
+            saveNoteFolders();
+            renderNoteFolders();
+            selectNoteFolder(newFolder.id);
+            showToast('Collection created');
+        }
+
+        function deleteCurrentNoteFolder() {
+            if (noteFolders.length <= 1) return alert('Minimum 1 collection required');
+            if (!confirm(`Delete collection?`)) return;
+            noteFolders = noteFolders.filter(f => f.id !== activeNoteFolderId);
+            saveNoteFolders();
+            location.reload();
+        }
+
+        function saveNoteFolders() { localStorage.setItem('kamusNoteFolders', JSON.stringify(noteFolders)); }
+
+        function renderNotesInFolder() {
+            const container = document.getElementById('notesListView');
+            const sidebarList = document.getElementById('notesListInFolder');
+            const folder = noteFolders.find(f => f.id === activeNoteFolderId);
+            if (!folder) return;
+            sidebarList.innerHTML = '';
+            
+            if (folder.notes.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full flex flex-col items-center justify-center py-20 text-white/30">
+                        <svg class="w-16 h-16 mb-4 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                        <p class="text-lg font-semibold">Empty collection</p>
+                        <button onclick="openNoteEditor()" class="btn-primary mt-4 text-xs px-6">Create Note</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            const sortedNotes =[...folder.notes].sort((a,b) => b.created - a.created);
+            container.innerHTML = sortedNotes.map(n => {
+                const transStatus = n.translations && n.translations.some(t => t && t.trim()) ? 'Translated' : 'No translation';
+                const hasAudio = n.audio ? '<span class="text-blue-400">Audio</span>' : '';
+                return `
+                <div class="note-card ${activeNoteId === n.id ? 'active' : ''}" onclick="openNotePlayer('${n.id}')">
+                    <div class="flex justify-between items-start mb-3">
+                        <h3 class="font-bold text-lg text-white/90">${n.title}</h3>
+                        <span class="text-xs text-white/30">${new Date(n.created).toLocaleDateString()}</span>
+                    </div>
+                    <p class="text-sm text-white/40 line-clamp-2 mb-4">${n.content.substring(0, 100)}...</p>
+                    <div class="flex items-center gap-3 text-xs">
+                        <span class="text-white/30">${transStatus}</span>
+                        ${hasAudio}
+                    </div>
+                </div>
+            `}).join('');
+            
+            sortedNotes.forEach(n => {
+                const div = document.createElement('div');
+                div.className = `p-2 rounded-lg cursor-pointer text-sm truncate ${activeNoteId === n.id ? 'bg-blue-500/20 text-blue-300' : 'hover:bg-white/5 text-white/40'}`;
+                div.onclick = (e) => { e.stopPropagation(); openNotePlayer(n.id); };
+                div.textContent = n.title;
+                sidebarList.appendChild(div);
+            });
+        }
+
+        function getAllTags() {
+            const tags = new Set();
+            folders.forEach(f => f.words.forEach(w => w.tags?.forEach(t => tags.add(t))));
+            return Array.from(tags).sort();
+        }
+
+        function renderTagFilters() {
+            if (!activeFolderId) return;
+            const tags = getAllTags();
+            const bar = document.getElementById('tagFilterBar');
+            const cloud = document.getElementById('tagCloud');
+            if (tags.length === 0) { bar.classList.add('hidden'); return; }
+            bar.classList.remove('hidden');
+            cloud.innerHTML = tags.map(tag => {
+                const isActive = currentTagFilter === tag;
+                const count = folders.find(f => f.id === activeFolderId).words.filter(w => w.tags?.includes(tag)).length;
+                return `<button onclick="toggleTagFilter('${tag}')" class="tag-pill ${isActive ? 'bg-blue-500/20 border-blue-500/50 text-blue-300' : ''}">${tag} ${count}</button>`;
+            }).join('');
+            document.getElementById('clearTagBtn').classList.toggle('hidden', !currentTagFilter);
+        }
+
+        function toggleTagFilter(tag) {
+            currentTagFilter = currentTagFilter === tag ? null : tag;
+            expandedWordId = null;
+            renderTagFilters();
+            renderWords();
+        }
+
+        function clearTagFilter() {
+            currentTagFilter = null;
+            renderTagFilters();
+            renderWords();
+        }
+
+        function setFilter(type) {
+            currentFilter = type;
+            document.getElementById('btn-filter-all').className = type === 'all' ? 'px-4 py-1.5 rounded-lg text-xs font-semibold bg-white/10 text-white transition-all' : 'px-4 py-1.5 rounded-lg text-xs font-semibold text-white/40 hover:text-white transition-all';
+            document.getElementById('btn-filter-fav').className = type === 'favorites' ? 'px-4 py-1.5 rounded-lg text-xs font-semibold bg-yellow-500/20 text-yellow-400 transition-all' : 'px-4 py-1.5 rounded-lg text-xs font-semibold text-white/40 hover:text-white transition-all';
+            expandedWordId = null;
+            renderWords();
+        }
+
+        function toggleWordExpand(id) {
+            if (expandedWordId === id) expandedWordId = null;
+            else expandedWordId = id;
+            renderWords();
+        }
+
+        function renderWords() {
+            const list = document.getElementById('wordsList');
+            const folder = folders.find(f => f.id === activeFolderId);
+            if (!folder) return;
+            
+            let words = folder.words;
+            if (currentFilter === 'favorites') words = words.filter(w => w.fav);
+            if (currentTagFilter) words = words.filter(w => w.tags?.includes(currentTagFilter));
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            if (search) words = words.filter(w => w.word.toLowerCase().includes(search) || w.mean.toLowerCase().includes(search));
+            
+            words.sort((a,b) => (b.fav - a.fav) || (b.created - a.created));
+            
+            list.innerHTML = words.map(w => {
+                const isExpanded = expandedWordId === w.id;
+                const hasNotes = w.notes && w.notes.trim();
+                const hasTags = w.tags && w.tags.length > 0;
+                
+                return `
+                <div class="word-item ${isExpanded ? 'active' : ''}" onclick="toggleWordExpand('${w.id}')">
+                    <div class="word-summary">
+                        <div class="flex-1 min-w-0">
+                            <div class="word-title truncate">${w.word}</div>
+                            ${w.pron ? `<div class="word-pron">/${w.pron}/</div>` : ''}
+                            <div class="word-meaning truncate">${w.mean}</div>
+                        </div>
+                        
+                        <div class="flex items-center gap-2" onclick="event.stopPropagation()">
+                            <button class="icon-btn ${w.fav ? 'active' : ''}" onclick="toggleFav('${w.id}')" title="Favorite">
+                                <svg class="w-4 h-4" fill="${w.fav ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>
+                            </button>
+                            <svg class="w-5 h-5 text-white/20 transition-transform ${isExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                    </div>
+                    
+                    <div class="word-details">
+                        <div class="details-inner">
+                            ${hasTags ? `<div class="flex flex-wrap gap-2 mb-4">${w.tags.map(t => `<span class="tag-pill">${t}</span>`).join('')}</div>` : ''}
+                            ${hasNotes ? `<div class="text-sm text-white/60 mb-4 leading-relaxed">${w.notes}</div>` : '<div class="text-sm text-white/30 mb-4 italic">No notes</div>'}
+                            <div class="flex gap-2">
+                                <button onclick="event.stopPropagation(); openWordModal('${w.id}')" class="btn-secondary text-xs flex-1 py-2">Edit</button>
+                                <button onclick="event.stopPropagation(); deleteWordById('${w.id}')" class="btn-secondary btn-danger text-xs flex-1 py-2">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function toggleFav(id) {
+            const f = folders.find(x => x.id === activeFolderId);
+            const w = f.words.find(x => x.id === id);
+            w.fav = !w.fav;
+            saveFolders();
+            renderWords();
+            renderFolders();
+            showToast(w.fav ? 'Added to favorites' : 'Removed from favorites');
+        }
+
+        function openWordModal(id = null) {
+            editingWordId = id;
+            const isEdit = !!id;
+            const w = isEdit ? folders.find(f => f.id === activeFolderId).words.find(x => x.id === id) : null;
+            
+            const content = `
+                <form onsubmit="saveWordFromWindow(event)" class="space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 block">Word</label>
+                        <input type="text" id="win-w-word" required class="input-glass text-base font-semibold" value="${isEdit ? w.word : ''}">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 block">Pronunciation</label>
+                        <input type="text" id="win-w-pron" class="input-glass text-blue-300" value="${isEdit ? w.pron : ''}">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 block">Meaning</label>
+                        <input type="text" id="win-w-mean" required class="input-glass" value="${isEdit ? w.mean : ''}">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 block">Language</label>
+                        <select id="win-w-lang" class="input-glass">
+                            <option value="en" ${isEdit && w.lang === 'en' ? 'selected' : ''}>English</option>
+                            <option value="id" ${isEdit && w.lang === 'id' ? 'selected' : ''}>Indonesian</option>
+                            <option value="ar" ${isEdit && w.lang === 'ar' ? 'selected' : ''}>Arabic</option>
+                            <option value="de" ${isEdit && w.lang === 'de' ? 'selected' : ''}>German</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 block">Tags</label>
+                        <input type="text" id="win-w-tags" class="input-glass text-xs" placeholder="noun, verb, etc" value="${isEdit && w.tags ? w.tags.join(', ') : ''}">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 block">Notes</label>
+                        <textarea id="win-w-notes" class="input-glass text-sm" rows="3">${isEdit ? w.notes : ''}</textarea>
+                    </div>
+                    <label class="flex items-center gap-3 cursor-pointer mt-4">
+                        <input type="checkbox" id="win-w-fav" class="w-4 h-4 rounded bg-black/30 border-white/20 text-blue-500" ${isEdit && w.fav ? 'checked' : ''}>
+                        <span class="text-sm text-white/60">Mark as favorite</span>
+                    </label>
+                    <div class="flex gap-3 pt-6 border-t border-white/10 mt-6">
+                        <button type="button" onclick="closeWindowById(this)" class="flex-1 btn-secondary">Cancel</button>
+                        <button type="submit" class="flex-1 btn-primary">${isEdit ? 'Update' : 'Save'}</button>
+                    </div>
+                </form>
+            `;
+            
+            createWindow('word', isEdit ? 'Edit Word' : 'Add Word', content, { width: '450px' });
+        }
+
+        function saveWordFromWindow(e) {
+            e.preventDefault();
+            const f = folders.find(x => x.id === activeFolderId);
+            const data = {
+                word: document.getElementById('win-w-word').value.trim(),
+                pron: document.getElementById('win-w-pron').value.trim(),
+                mean: document.getElementById('win-w-mean').value.trim(),
+                tags: document.getElementById('win-w-tags').value.split(',').map(t => t.trim()).filter(t => t),
+                notes: document.getElementById('win-w-notes').value.trim(),
+                fav: document.getElementById('win-w-fav').checked,
+                lang: document.getElementById('win-w-lang').value,
+                created: Date.now()
+            };
+            
+            if (editingWordId) {
+                const idx = f.words.findIndex(w => w.id === editingWordId);
+                f.words[idx] = {...f.words[idx], ...data, created: f.words[idx].created};
+                expandedWordId = editingWordId;
+                showToast('Word updated');
+            } else {
+                f.words.push({id: 'w'+Date.now(), ...data});
+                showToast('Word added');
+            }
+            
+            saveFolders();
+            closeWindowById(Object.keys(windows).find(key => windows[key].refId === 'word'));
+            renderWords();
+            renderTagFilters();
+            updateGlobalStats();
+            updateDueBadge();
+        }
+
+        function deleteWordById(id) {
+            if (!confirm('Delete this word?')) return;
+            const f = folders.find(x => x.id === activeFolderId);
+            f.words = f.words.filter(w => w.id !== id);
+            if (expandedWordId === id) expandedWordId = null;
+            saveFolders();
+            renderWords();
+            updateGlobalStats();
+            updateDueBadge();
+            showToast('Word deleted');
+        }
+
+        // NOTES FUNCTIONS
+        function openNoteEditor(id = null) {
+            if (!activeNoteFolderId) return alert('Select a folder first');
+            editingNoteId = id;
+            const isEdit = !!id;
+            const folder = noteFolders.find(f => f.id === activeNoteFolderId);
+            const n = isEdit ? folder.notes.find(note => note.id === id) : null;
+            
+            let folderOptions = noteFolders.map(f => `<option value="${f.id}" ${f.id === activeNoteFolderId ? 'selected' : ''}>${f.name}</option>`).join('');
+            
+            const content = `
+                <form onsubmit="saveNoteFromWindow(event)" class="space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 block">Folder</label>
+                        <select id="win-n-folder" class="input-glass text-sm">${folderOptions}</select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 block">Title</label>
+                        <input type="text" id="win-n-title" required class="input-glass text-base font-semibold" value="${isEdit ? n.title : ''}">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 block">Language</label>
+                        <select id="win-n-lang" class="input-glass text-sm">
+                            <option value="en" ${isEdit && n.lang === 'en' ? 'selected' : ''}>English</option>
+                            <option value="id" ${isEdit && n.lang === 'id' ? 'selected' : ''}>Indonesian</option>
+                            <option value="ar" ${isEdit && n.lang === 'ar' ? 'selected' : ''}>Arabic (RTL)</option>
+                            <option value="de" ${isEdit && n.lang === 'de' ? 'selected' : ''}>German</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 block">Audio</label>
+                        <div class="flex gap-2 mt-1">
+                            <input type="file" id="win-n-audio-file" accept="audio/*" class="hidden" onchange="handleWindowAudioSelect(this)">
+                            <button type="button" onclick="document.getElementById('win-n-audio-file').click()" class="btn-secondary text-xs py-2">Choose File</button>
+                            <span id="win-audio-file-name" class="text-xs text-white/40 self-center">${isEdit && n.audio ? 'Audio saved' : 'No file selected'}</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 block">Content</label>
+                        <textarea id="win-n-content" required class="input-glass" rows="4">${isEdit ? n.content : ''}</textarea>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 block">Translations</label>
+                        <textarea id="win-n-translations" class="input-glass" rows="3" placeholder="One line per sentence">${isEdit && n.translations ? n.translations.join('\n') : ''}</textarea>
+                    </div>
+                    <div class="flex gap-3 pt-6 border-t border-white/10 mt-6">
+                        <button type="button" onclick="closeWindowById(this)" class="flex-1 btn-secondary">Cancel</button>
+                        <button type="submit" class="flex-1 btn-primary">${isEdit ? 'Update' : 'Save'}</button>
+                    </div>
+                </form>
+            `;
+            
+            createWindow('note', isEdit ? 'Edit Note' : 'New Note', content, { width: '500px' });
+            if (isEdit && n.audio) tempAudioBase64 = n.audio;
+        }
+
+        function handleWindowAudioSelect(input) {
+            const file = input.files[0];
+            if (!file) return;
+            if (file.size > 10 * 1024 * 1024) { alert('File too large! Max 10MB.'); return; }
+            document.getElementById('win-audio-file-name').textContent = file.name;
+            const reader = new FileReader();
+            reader.onload = e => { tempAudioBase64 = e.target.result; };
+            reader.readAsDataURL(file);
+        }
+
+        function saveNoteFromWindow(e) {
+            e.preventDefault();
+            const folderId = document.getElementById('win-n-folder').value;
+            const title = document.getElementById('win-n-title').value.trim();
+            const content = document.getElementById('win-n-content').value.trim();
+            const transText = document.getElementById('win-n-translations').value.trim();
+            const lang = document.getElementById('win-n-lang').value;
+            if (!title || !content) return alert('Title and content required');
+            let translations = transText.split('\n').map(t => t.trim());
+            const sentences = splitIntoSentences(content);
+            while (translations.length < sentences.length) translations.push('');
+            while (translations.length > sentences.length) translations.pop();
+            const folder = noteFolders.find(f => f.id === (editingNoteId ? activeNoteFolderId : folderId));
+            if (editingNoteId) {
+                const idx = folder.notes.findIndex(n => n.id === editingNoteId);
+                if (idx !== -1) folder.notes[idx] = {...folder.notes[idx], title, content, translations, lang, audio: tempAudioBase64 || folder.notes[idx].audio};
+            } else {
+                folder.notes.push({id: 'n' + Date.now(), title, content, translations, lang, audio: tempAudioBase64, syncData: null, created: Date.now()});
+            }
+            saveNoteFolders();
+            const winId = Object.keys(windows).find(key => windows[key].refId === 'note');
+            closeWindowById(winId);
+            if (!editingNoteId && folderId !== activeNoteFolderId) selectNoteFolder(folderId);
+            else renderNotesInFolder();
+            updateGlobalStats();
+            showToast(editingNoteId ? 'Note updated' : 'Note created');
+            tempAudioBase64 = null;
+        }
+
+        function deleteCurrentNote() {
+            if (!confirm('Delete this note?')) return;
+            const folder = noteFolders.find(f => f.id === activeNoteFolderId);
+            folder.notes = folder.notes.filter(n => n.id !== activeNoteId);
+            saveNoteFolders();
+            closeNotePlayer();
+            renderNotesInFolder();
+            updateGlobalStats();
+        }
+
+        function editCurrentNote() {
+            closeNotePlayer();
+            openNoteEditor(activeNoteId);
+        }
+
+        function openNotePlayer(id) {
+            activeNoteId = id;
+            const folder = noteFolders.find(f => f.id === activeNoteFolderId);
+            const note = folder.notes.find(n => n.id === id);
+            currentNoteData = note;
+            tempSyncData = note.syncData ? {...note.syncData} : {};
+            isLoopEnabled = false;
+            document.getElementById('loopBtn').classList.remove('active');
+            
+            document.getElementById('notesListView').classList.add('hidden');
+            document.getElementById('notesEmptyState').classList.add('hidden');
+            document.getElementById('notePlayerView').classList.remove('hidden');
+            document.getElementById('syncEditorView').classList.add('hidden');
+            document.getElementById('playerNoteTitle').textContent = note.title;
+            document.getElementById('playerNoteMeta').textContent = `${folder.name} • ${new Date(note.created).toLocaleDateString()}`;
+            
+            const audioEl = document.getElementById('mainAudio');
+            if (note.audio) {
+                audioEl.src = note.audio;
+                audioEl.classList.remove('hidden');
+                audioEl.loop = false;
+                audioEl.onloadedmetadata = () => updateTimeDisplay();
+                audioEl.ontimeupdate = updateTimeDisplay;
+            } else audioEl.classList.add('hidden');
+            
+            const hasSync = note.syncData && Object.keys(note.syncData).length > 0;
+            const hasTrans = note.translations && note.translations.some(t => t && t.trim());
+            document.getElementById('syncStatusIndicator').innerHTML = hasSync ? '<span class="text-green-400">Synced</span>' : '<span class="text-white/20">No sync</span>';
+            document.getElementById('translationStatusIndicator').innerHTML = hasTrans ? '<span class="text-purple-400">Translated</span>' : '<span class="text-white/20">No translation</span>';
+            
+            renderSentencesWithTranslation(note);
+            renderNotesInFolder();
+        }
+
+        function closeNotePlayer() {
+            const audio = document.getElementById('mainAudio');
+            audio.pause(); audio.src = ''; audio.loop = false;
+            activeNoteId = null; currentNoteData = null; isLoopEnabled = false;
+            closeTranslationPopup();
+            document.getElementById('notePlayerView').classList.add('hidden');
+            document.getElementById('syncEditorView').classList.add('hidden');
+            document.getElementById('notesListView').classList.remove('hidden');
+            renderNotesInFolder();
+        }
+
+        function splitIntoSentences(text) { return text.split(/(?<=[.!?۔؟])\s+/).filter(s => s.trim().length > 0); }
+
+        function renderSentencesWithTranslation(note) {
+            const container = document.getElementById('sentencesContainer');
+            const sentences = splitIntoSentences(note.content);
+            const translations = note.translations ||[];
+            container.innerHTML = '';
+            sentences.forEach((sentence, sentIdx) => {
+                const block = document.createElement('div');
+                block.className = 'sentence-block';
+                block.dataset.sentIdx = sentIdx;
+                const words = sentence.split(/(\s+)/);
+                let wordHtml = '';
+                let wordIdx = 0;
+                words.forEach(word => {
+                    if (word.trim() === '') wordHtml += word;
+                    else {
+                        const cleanWord = word.replace(/[.,!?;:"()]/g, '');
+                        const safeWord = cleanWord.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                        wordHtml += `<span class="karaoke-word" data-sent="${sentIdx}" data-word="${wordIdx}" onclick="showTranslationPopup('${safeWord}', event)">${word}</span>`;
+                        wordIdx++;
+                    }
+                });
+                const trans = translations[sentIdx] || '';
+                block.innerHTML = `
+                    <div class="text-lg leading-relaxed text-white/80 mb-2">${wordHtml}</div>
+                    ${trans ? `<div class="text-sm text-white/40 italic border-t border-white/10 pt-2 mt-2">${trans}</div>` : ''}
+                `;
+                container.appendChild(block);
+            });
+            wordTimings = note.syncData || {};
+        }
+
+        function toggleLoop() {
+            const audio = document.getElementById('mainAudio');
+            const btn = document.getElementById('loopBtn');
+            isLoopEnabled = !isLoopEnabled;
+            audio.loop = isLoopEnabled;
+            btn.classList.toggle('active', isLoopEnabled);
+        }
+
+        function updateTimeDisplay() {
+            const audio = document.getElementById('mainAudio');
+            if (!audio.duration) return;
+            document.getElementById('currentTime').textContent = `${formatTime(audio.currentTime)} / ${formatTime(audio.duration)}`;
+        }
+
+        function lookupWordInDictionary(searchWord) {
+            const results =[];
+            const searchLower = searchWord.toLowerCase().replace(/[.,!?;:"()]/g, '');
+            folders.forEach(folder => {
+                folder.words.forEach(wordData => {
+                    if (wordData.word.toLowerCase() === searchLower || wordData.word.toLowerCase().includes(searchLower)) {
+                        results.push({...wordData, folderName: folder.name});
+                    }
+                });
+            });
+            return results;
+        }
+
+        function showTranslationPopup(word, event) {
+            event.stopPropagation();
+            closeTranslationPopup();
+            const container = document.getElementById('popupContainer');
+            const results = lookupWordInDictionary(word);
+            let contentHTML = '';
+            if (results.length > 0) {
+                const result = results[0];
+                contentHTML = `
+                    <div class="liquid-glass rounded-2xl p-5 min-w-[280px] max-w-[90vw] border border-white/20 shadow-2xl">
+                        <div class="flex justify-between items-center mb-3 pb-3 border-b border-white/10">
+                            <div class="text-xl font-bold text-white/90">${result.word}</div>
+                            <button onclick="closeTranslationPopup()" class="text-white/40 hover:text-white">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                        </div>
+                        ${result.pron ? `<div class="text-sm text-blue-400 mb-2">/${result.pron}/</div>` : ''}
+                        <div class="text-base text-green-400 font-medium mb-3">${result.mean}</div>
+                        <div class="flex flex-wrap gap-2 mb-3">${result.tags?.map(t => `<span class="tag-pill text-[10px]">${t}</span>`).join('') || ''}</div>
+                        ${result.notes ? `<div class="text-sm text-white/50 mt-3 pt-3 border-t border-white/10">${result.notes}</div>` : ''}
+                        <div class="flex gap-2 mt-4">
+                            <button onclick="editWordFromPopup('${result.id}')" class="flex-1 btn-secondary text-xs py-2">Edit</button>
+                            <button onclick="closeTranslationPopup()" class="flex-1 btn-primary text-xs py-2">Close</button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                contentHTML = `
+                    <div class="liquid-glass rounded-2xl p-5 min-w-[280px] text-center border border-white/20 shadow-2xl">
+                        <div class="text-lg font-bold text-white/90 mb-2">${word}</div>
+                        <div class="text-sm text-white/40 mb-4">Not found in dictionary</div>
+                        <button onclick="addWordFromPopup('${word.replace(/'/g, "\\'")}')" class="btn-primary w-full text-xs py-2">Add to Dictionary</button>
+                    </div>
+                `;
+            }
+            
+            const rect = event.target.getBoundingClientRect();
+            let top = rect.bottom + 10;
+            let left = rect.left;
+            if (left + 300 > window.innerWidth) left = window.innerWidth - 320;
+            if (top + 200 > window.innerHeight) top = rect.top - 220;
+            
+            const popup = document.createElement('div');
+            popup.className = 'fixed z-[10003] fade-in';
+            popup.style.top = `${top}px`;
+            popup.style.left = `${left}px`;
+            popup.innerHTML = contentHTML;
+            popup.id = 'activePopup';
+            container.appendChild(popup);
+        }
+
+        function closeTranslationPopup() {
+            const popup = document.getElementById('activePopup');
+            if (popup) popup.remove();
+        }
+
+        function addWordFromPopup(word) { closeTranslationPopup(); openWordModal(); document.getElementById('win-w-word').value = word; document.getElementById('win-w-mean').focus(); }
+
+        function editWordFromPopup(wordId) {
+            for (let folder of folders) {
+                const word = folder.words.find(w => w.id === wordId);
+                if (word) {
+                    closeTranslationPopup();
+                    if (activeFolderId !== folder.id) selectFolder(folder.id);
+                    setTimeout(() => { expandedWordId = wordId; openWordModal(wordId); }, 100);
+                    return;
+                }
+            }
+        }
+
+        function openTranslationEditor() {
+            if (!currentNoteData) return;
+            const sentences = splitIntoSentences(currentNoteData.content);
+            tempTranslations = currentNoteData.translations ?[...currentNoteData.translations] : sentences.map(() => '');
+            
+            const content = sentences.map((sent, idx) => `
+                <div class="p-4 bg-black/20 rounded-xl border border-white/5 mb-3">
+                    <div class="text-sm text-white/40 mb-2 font-mono">#${idx + 1}</div>
+                    <div class="text-sm text-white/70 mb-3 italic">${sent}</div>
+                    <input type="text" class="input-glass text-sm w-full trans-input-${idx}" value="${tempTranslations[idx] || ''}" placeholder="Translation...">
+                </div>
+            `).join('');
+            
+            const fullContent = `
+                <div class="space-y-2 mb-4">
+                    ${content}
+                </div>
+                <div class="flex gap-3 pt-4 border-t border-white/10">
+                    <button onclick="closeWindowById(this)" class="flex-1 btn-secondary">Cancel</button>
+                    <button onclick="saveTranslationsFromWindow()" class="flex-1 btn-primary">Save</button>
+                </div>
+            `;
+            
+            createWindow('translation', 'Edit Translation', fullContent, { width: '500px' });
+        }
+
+        function saveTranslationsFromWindow() {
+            const inputs = document.querySelectorAll('[class*="trans-input-"]');
+            tempTranslations =[];
+            inputs.forEach(input => tempTranslations.push(input.value.trim()));
+            if (currentNoteData) {
+                currentNoteData.translations = tempTranslations;
+                const folder = noteFolders.find(f => f.id === activeNoteFolderId);
+                const note = folder.notes.find(n => n.id === currentNoteData.id);
+                note.translations = tempTranslations;
+                saveNoteFolders();
+                openNotePlayer(currentNoteData.id);
+                showToast('Translations saved');
+            }
+            closeWindowById(Object.keys(windows).find(key => windows[key].refId === 'translation'));
+        }
+
+        function updateKaraokeHighlight() {
+            if (!currentNoteData || document.getElementById('notePlayerView').classList.contains('hidden')) return;
+            const audio = document.getElementById('mainAudio');
+            if (!audio || audio.paused || !wordTimings || Object.keys(wordTimings).length === 0) return;
+            const currentTime = audio.currentTime;
+            document.querySelectorAll('.karaoke-word.active').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.sentence-block.active').forEach(el => el.classList.remove('active'));
+            let currentSentIdx = -1, currentWordIdx = -1;
+            const timings = Object.entries(wordTimings).map(([key, time]) => ({key, time, sentIdx: parseInt(key.split('-')[0]), wordIdx: parseInt(key.split('-')[1])})).sort((a,b) => a.time - b.time);
+            for (let t of timings) {
+                if (t.time <= currentTime) { currentSentIdx = t.sentIdx; currentWordIdx = t.wordIdx; }
+                else break;
+            }
+            if (currentSentIdx >= 0 && currentWordIdx >= 0) {
+                const wordEl = document.querySelector(`.karaoke-word[data-sent="${currentSentIdx}"][data-word="${currentWordIdx}"]`);
+                if (wordEl) { wordEl.classList.add('active'); wordEl.scrollIntoView({behavior: 'smooth', block: 'center'}); }
+                const sentBlock = document.querySelector(`.sentence-block[data-sent-idx="${currentSentIdx}"]`);
+                if (sentBlock) sentBlock.classList.add('active');
+            }
+        }
+
+        function openSyncEditor() {
+            if (!currentNoteData) return;
+            document.getElementById('mainAudio').pause();
+            closeTranslationPopup();
+            document.getElementById('notePlayerView').classList.add('hidden');
+            document.getElementById('syncEditorView').classList.remove('hidden');
+            const playerAudio = document.getElementById('mainAudio');
+            const editorAudio = document.getElementById('syncEditorAudio');
+            if (currentNoteData.audio) { editorAudio.src = currentNoteData.audio; editorAudio.currentTime = playerAudio.currentTime; }
+            renderSyncEditor();
+        }
+
+        function closeSyncEditor() {
+            document.getElementById('syncEditorAudio').pause();
+            document.getElementById('syncEditorView').classList.add('hidden');
+            document.getElementById('notePlayerView').classList.remove('hidden');
+            const playerAudio = document.getElementById('mainAudio');
+            const editorAudio = document.getElementById('syncEditorAudio');
+            playerAudio.currentTime = editorAudio.currentTime;
+            renderSentencesWithTranslation(currentNoteData);
+        }
+
+        function renderSyncEditor() {
+            const container = document.getElementById('syncEditorDisplay');
+            const sentences = splitIntoSentences(currentNoteData.content);
+            container.innerHTML = '';
+            sentences.forEach((sent, sentIdx) => {
+                const words = sent.split(/(\s+)/);
+                let html = `<div class="mb-4 p-4 bg-black/20 rounded-xl border border-white/5">`;
+                let wordIdx = 0;
+                words.forEach(word => {
+                    if (word.trim() === '') html += word;
+                    else {
+                        const key = `${sentIdx}-${wordIdx}`;
+                        const hasSync = tempSyncData[key] !== undefined;
+                        html += `<span class="inline-block px-2 py-1 m-0.5 rounded-lg cursor-pointer transition-all ${hasSync ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-white/5 text-white/70 border border-white/10 hover:bg-white/10'}" onclick="markWordSync('${sentIdx}', '${wordIdx}')">${word}</span>`;
+                        wordIdx++;
+                    }
+                });
+                html += `</div>`;
+                container.innerHTML += html;
+            });
+        }
+
+        function markWordSync(sentIdx, wordIdx) {
+            const audio = document.getElementById('syncEditorAudio');
+            const key = `${sentIdx}-${wordIdx}`;
+            if (tempSyncData[key] !== undefined) delete tempSyncData[key];
+            else tempSyncData[key] = audio.currentTime;
+            renderSyncEditor();
+        }
+
+        function saveSyncAndClose() {
+            if (currentNoteData) {
+                currentNoteData.syncData = {...tempSyncData};
+                const folder = noteFolders.find(f => f.id === activeNoteFolderId);
+                const note = folder.notes.find(n => n.id === currentNoteData.id);
+                note.syncData = {...tempSyncData};
+                saveNoteFolders();
+                openNotePlayer(currentNoteData.id);
+                showToast('Sync saved');
+            }
+            closeSyncEditor();
+        }
+
+        function resetSyncData() { if (confirm('Clear all sync data?')) { tempSyncData = {}; renderSyncEditor(); } }
+
+        function getDueWords(folderId) {
+            const folder = folders.find(f => f.id === folderId);
+            if (!folder) return[];
+            const now = Date.now();
+            return folder.words.filter(w => { if (!w.srs) return true; return w.srs.nextReview <= now; });
+        }
+
+        function updateDueBadge() {
+            if (!activeFolderId) return;
+            const due = getDueWords(activeFolderId).length;
+            const badge = document.getElementById('dueBadge');
+            if (due > 0) { badge.textContent = `${due} due`; badge.classList.remove('hidden'); }
+            else badge.classList.add('hidden');
+        }
+
+        function openQuizSelector() {
+            if (!activeFolderId) return alert('Select a folder first');
+            
+            const tagOptions = getAllTags().map(tag => `<option value="${tag}">${tag}</option>`).join('');
+            
+            const content = `
+                <div class="space-y-3">
+                    <select id="win-quiz-tag" class="input-glass mb-4">
+                        <option value="">All Words</option>
+                        ${tagOptions}
+                    </select>
+                    <button onclick="startQuizFromWindow('flashcard')" class="w-full p-4 rounded-2xl liquid-glass hover:bg-white/10 transition-all text-left group">
+                        <div class="font-bold text-white/90 group-hover:text-white mb-1">Flashcard SRS</div>
+                        <div class="text-xs text-white/40">Spaced repetition system</div>
+                    </button>
+                    <button onclick="startQuizFromWindow('multiple')" class="w-full p-4 rounded-2xl liquid-glass hover:bg-white/10 transition-all text-left group">
+                        <div class="font-bold text-white/90 group-hover:text-white mb-1">Multiple Choice</div>
+                        <div class="text-xs text-white/40">Select the correct meaning</div>
+                    </button>
+                    <button onclick="startQuizFromWindow('typing')" class="w-full p-4 rounded-2xl liquid-glass hover:bg-white/10 transition-all text-left group">
+                        <div class="font-bold text-white/90 group-hover:text-white mb-1">Typing Test</div>
+                        <div class="text-xs text-white/40">Type the meaning</div>
+                    </button>
+                </div>
+            `;
+            
+            createWindow('quiz', 'Select Quiz Mode', content, { width: '400px' });
+        }
+
+        function startQuizFromWindow(mode) {
+            const tagFilter = document.getElementById('win-quiz-tag').value;
+            closeWindowById(Object.keys(windows).find(key => windows[key].refId === 'quiz'));
+            startQuiz(mode, tagFilter);
+        }
+
+        function startQuiz(mode, tagFilter = '') {
+            quizMode = mode; quizIndex = 0; quizStreak = 0;
+            const folder = folders.find(f => f.id === activeFolderId);
+            let pool = folder.words;
+            if (tagFilter) pool = pool.filter(w => w.tags?.includes(tagFilter));
+            if (pool.length === 0) return alert('No words available');
+            if (mode === 'flashcard') {
+                let due = getDueWords(activeFolderId).filter(w => !tagFilter || w.tags?.includes(tagFilter));
+                let others = pool.filter(w => !due.includes(w));
+                quizQueue = [...shuffle(due), ...shuffle(others)].slice(0, 20);
+            } else quizQueue = shuffle(pool).slice(0, 10);
+            if (quizQueue.length === 0) return alert('No words for review');
+            document.getElementById('quizOverlay').classList.add('active');
+            document.body.style.overflow = 'hidden'; 
+            renderQuizQuestion();
+        }
+
+        function closeQuiz() { 
+            document.getElementById('quizOverlay').classList.remove('active'); 
+            document.body.style.overflow = ''; 
+            updateDueBadge(); 
+        }
+
+        function renderQuizQuestion() {
+            const container = document.getElementById('quizContent');
+            if (quizIndex >= quizQueue.length) {
+                container.innerHTML = `<div class="text-center"><div class="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center shadow-lg shadow-green-500/30"><svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div><h2 class="text-3xl font-bold mb-2 text-white/90">Completed</h2><div class="text-5xl font-bold text-green-400 mb-8">${quizStreak}</div><button onclick="closeQuiz()" class="btn-primary px-8">Done</button></div>`;
+                return;
+            }
+            const w = quizQueue[quizIndex];
+            document.getElementById('quizProgress').textContent = `${quizIndex + 1}/${quizQueue.length}`;
+            document.getElementById('quizStreakDisplay').textContent = quizStreak;
+            
+            if (quizMode === 'flashcard') {
+                container.innerHTML = `
+                    <div class="quiz-card cursor-pointer liquid-glass-strong rounded-3xl p-12 min-w-[300px] md:min-w-[400px] text-center" onclick="flipCard()">
+                        <div id="cardFront">
+                            <h2 class="text-4xl md:text-5xl font-bold mb-4 text-white/90">${w.word}</h2>
+                            ${w.pron ? `<p class="text-xl md:text-2xl text-blue-400/80 mb-8">${w.pron}</p>` : '<div class="mb-8"></div>'}
+                            <p class="text-white/30 text-sm">Click to reveal</p>
+                        </div>
+                        <div id="cardBack" class="hidden">
+                            <h3 class="text-2xl md:text-3xl font-bold text-green-400 mb-6">${w.mean}</h3>
+                            ${w.notes ? `<p class="text-white/60 mb-8">${w.notes}</p>` : ''}
+                            <div class="flex flex-wrap gap-3 justify-center">
+                                <button onclick="handleSRS('again', event)" class="px-4 md:px-6 py-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 transition-all text-sm font-semibold">Again</button>
+                                <button onclick="handleSRS('hard', event)" class="px-4 md:px-6 py-3 rounded-xl bg-orange-500/20 border border-orange-500/30 text-orange-400 hover:bg-orange-500/30 transition-all text-sm font-semibold">Hard</button>
+                                <button onclick="handleSRS('good', event)" class="px-4 md:px-6 py-3 rounded-xl bg-green-500/20 border border-green-500/30 text-green-400 hover:bg-green-500/30 transition-all text-sm font-semibold">Good</button>
+                                <button onclick="handleSRS('easy', event)" class="px-4 md:px-6 py-3 rounded-xl bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:bg-blue-500/30 transition-all text-sm font-semibold">Easy</button>
+                            </div>
+                        </div>
+                    </div>`;
+            } else if (quizMode === 'multiple') {
+                const others = folders.find(f => f.id === activeFolderId).words.filter(x => x.id !== w.id);
+                const options = shuffle([...shuffle(others).slice(0,3).map(x => x.mean), w.mean]);
+                container.innerHTML = `<div class="w-full max-w-lg px-4"><h2 class="text-3xl md:text-4xl font-bold mb-8 text-center text-white/90">${w.word}</h2><div class="space-y-3">${options.map((opt, i) => `<button onclick="checkAnswer('${opt.replace(/'/g, "\\'")}', '${w.mean.replace(/'/g, "\\'")}')" class="w-full text-left p-4 md:p-5 rounded-2xl liquid-glass hover:bg-white/10 transition-all text-base md:text-lg text-white/80 option-btn" id="opt-${i}">${String.fromCharCode(65+i)}. ${opt}</button>`).join('')}</div><div id="feedbackArea" class="mt-6 hidden text-center"><button onclick="nextQuestion()" class="btn-primary">Continue</button></div></div>`;
+            } else if (quizMode === 'typing') {
+                container.innerHTML = `<div class="text-center w-full max-w-md px-4"><h2 class="text-3xl md:text-4xl font-bold mb-8 text-white/90">${w.word}</h2><input type="text" id="typeInput" class="input-glass text-center text-lg md:text-xl py-4 mb-4" placeholder="Type meaning..." onkeypress="if(event.key==='Enter')checkTyping('${w.mean.replace(/'/g, "\\'")}')"><button onclick="checkTyping('${w.mean.replace(/'/g, "\\'")}')" class="btn-primary w-full py-3">Check</button><div id="typeFeedback" class="mt-6 hidden"><p id="typeResult" class="text-lg font-bold mb-4"></p><button onclick="nextQuestion()" class="btn-secondary">Continue</button></div></div>`;
+                setTimeout(() => document.getElementById('typeInput')?.focus(), 100);
+            }
+        }
+
+        function flipCard() { 
+            const front = document.getElementById('cardFront');
+            const back = document.getElementById('cardBack');
+            if (front && back) {
+                front.classList.add('hidden'); 
+                back.classList.remove('hidden'); 
+            }
+        }
+
+        function handleSRS(rating, e) {
+            e.stopPropagation();
+            const w = quizQueue[quizIndex];
+            if (!w.srs) w.srs = {interval: 0, nextReview: 0};
+            const now = Date.now();
+            const day = 86400000;
+            let interval;
+            if (rating === 'again') interval = 60000;
+            else if (rating === 'hard') interval = Math.max(2.5*3600000, w.srs.interval * 1.2);
+            else if (rating === 'good') interval = Math.max(day, w.srs.interval * 2.5);
+            else interval = Math.max(4*day, w.srs.interval * 4);
+            w.srs.interval = interval; w.srs.nextReview = now + interval;
+            if (rating === 'again') quizStreak = 0; else quizStreak++;
+            saveFolders(); quizIndex++; renderQuizQuestion();
+        }
+
+        function checkAnswer(selected, correct) {
+            const isCorrect = selected === correct;
+            document.querySelectorAll('.option-btn').forEach(btn => { 
+                btn.disabled = true; 
+                if (btn.textContent.includes(correct)) btn.classList.add('bg-green-500/20', 'border-green-500/30'); 
+                else if (btn.textContent.includes(selected) && !isCorrect) btn.classList.add('bg-red-500/20', 'border-red-500/30'); 
+            });
+            if (isCorrect) quizStreak++; else quizStreak = 0;
+            document.getElementById('feedbackArea').classList.remove('hidden');
+        }
+
+        function checkTyping(correct) {
+            const input = document.getElementById('typeInput').value.trim().toLowerCase();
+            const correctLower = correct.toLowerCase();
+            const isCorrect = input === correctLower || (input.length > 2 && (correctLower.includes(input) || input.includes(correctLower)));
+            const fb = document.getElementById('typeFeedback');
+            const res = document.getElementById('typeResult');
+            fb.classList.remove('hidden');
+            if (isCorrect && input.length > 0) { res.innerHTML = '<span class="text-green-400 text-2xl">Correct</span>'; quizStreak++; setTimeout(nextQuestion, 800); }
+            else { res.innerHTML = `<span class="text-red-400">Incorrect</span><br><span class="text-sm text-white/40">Answer: ${correct}</span>`; quizStreak = 0; }
+        }
+
+        function nextQuestion() { quizIndex++; renderQuizQuestion(); }
+
+        function shuffle(arr) {
+            const newArr = [...arr];
+            for (let i = newArr.length-1; i>0; i--) { const j = Math.floor(Math.random()*(i+1)); [newArr[i], newArr[j]] = [newArr[j], newArr[i]]; }
+            return newArr;
+        }
+
+        function formatTime(seconds) { if (isNaN(seconds)) return '0:00'; const mins = Math.floor(seconds / 60); const secs = Math.floor(seconds % 60); return `${mins}:${secs.toString().padStart(2, '0')}`; }
+
+        function showToast(message) {
+            const existing = document.querySelector('.toast-notification');
+            if (existing) existing.remove();
+            const toast = document.createElement('div');
+            toast.className = 'toast-notification';
+            toast.innerHTML = `<span class="flex items-center gap-2 text-sm font-medium">${message}</span>`;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => { 
+                toast.classList.remove('show'); 
+                setTimeout(() => toast.remove(), 300); 
+            }, 2500);
+        }
+
+        // EXPORT/IMPORT FUNCTIONS
+        function exportData(format) {
+            const timestamp = new Date().toISOString().split('T')[0];
+            
+            if (format === 'json') {
+                const data = {
+                    folders: folders,
+                    noteFolders: noteFolders,
+                    typingStats: typingState.stats,
+                    typingHistory: typingState.history,
+                    exportDate: new Date().toISOString(),
+                    version: '1.0'
+                };
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                downloadFile(blob, `dictionary-backup-${timestamp}.json`);
+                showToast('JSON exported successfully');
+            } 
+            else if (format === 'csv' || format === 'excel') {
+                let csv = 'Word,Pronunciation,Meaning,Tags,Folder,Language,Favorite,Notes\n';
+                folders.forEach(folder => {
+                    folder.words.forEach(word => {
+                        const tags = word.tags ? word.tags.join('; ') : '';
+                        const notes = word.notes ? `"${word.notes.replace(/"/g, '""')}"` : '';
+                        csv += `"${word.word}","${word.pron || ''}","${word.mean}","${tags}","${folder.name}","${word.lang || 'en'}","${word.fav ? 'Yes' : 'No'}","${notes}"\n`;
+                    });
+                });
+                
+                const mimeType = format === 'excel' ? 'application/vnd.ms-excel' : 'text/csv';
+                const extension = format === 'excel' ? 'xls' : 'csv';
+                const blob = new Blob([csv], { type: mimeType });
+                downloadFile(blob, `dictionary-words-${timestamp}.${extension}`);
+                showToast(`${format.toUpperCase()} exported successfully`);
+            }
+            else if (format === 'anki') {
+                let csv = '#separator:Comma\n#html:false\n#tags column:3\n';
+                folders.forEach(folder => {
+                    folder.words.forEach(word => {
+                        const tags = word.tags ? word.tags.join(' ') : '';
+                        const front = word.word + (word.pron ? ` [${word.pron}]` : '');
+                        const back = word.mean + (word.notes ? `<br><br>${word.notes}` : '');
+                        csv += `"${front.replace(/"/g, '""')}","${back.replace(/"/g, '""')}","${tags}"\n`;
+                    });
+                });
+                const blob = new Blob([csv], { type: 'text/csv' });
+                downloadFile(blob, `anki-deck-${timestamp}.txt`);
+                showToast('Anki deck exported. Import this text file to Anki.');
+            }
+        }
+
+        function downloadFile(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('dragover');
+        }
+
+        function handleFileDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) processImportFile(files[0]);
+        }
+
+        function handleFileImport(input) {
+            if (input.files.length > 0) processImportFile(input.files[0]);
+        }
+
+        function processImportFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const content = e.target.result;
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    
+                    if (ext === 'json') {
+                        const data = JSON.parse(content);
+                        pendingImportData = data;
+                        previewImportData(data);
+                    } else if (ext === 'csv' || ext === 'txt') {
+                        const lines = content.split('\n').filter(l => l.trim() && !l.startsWith('#'));
+                        const words =[];
+                        lines.forEach(line => {
+                            const parts = line.split(',').map(p => p.trim().replace(/^"|"$/g, ''));
+                            if (parts.length >= 2 && parts[0] !== 'Word') {
+                                words.push({
+                                    word: parts[0],
+                                    pron: parts[1] || '',
+                                    mean: parts[2] || parts[1] || '',
+                                    tags: parts[3] ? parts[3].split(';').map(t => t.trim()) :[],
+                                    folder: parts[4] || 'Imported'
+                                });
+                            }
+                        });
+                        pendingImportData = { words: words, format: 'csv' };
+                        previewImportData({ words: words, format: 'csv' });
+                    }
+                } catch (err) {
+                    alert('Error reading file: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function previewImportData(data) {
+            const preview = document.getElementById('importPreview-settings');
+            const content = document.getElementById('importPreviewContent-settings');
+            
+            let html = '';
+            if (data.folders) {
+                const wordCount = data.folders.reduce((a, f) => a + f.words.length, 0);
+                const noteCount = data.noteFolders ? data.noteFolders.reduce((a, f) => a + f.notes.length, 0) : 0;
+                html = `Full Backup:<br>${data.folders.length} folders, ${wordCount} words<br>${noteCount} notes<br>Date: ${data.exportDate || 'Unknown'}`;
+            } else if (data.words) {
+                html = `CSV Import:<br>${data.words.length} words to import<br><br>First 3 entries:<br>`;
+                data.words.slice(0, 3).forEach(w => {
+                    html += `- ${w.word}: ${w.mean}<br>`;
+                });
+            }
+            
+            content.innerHTML = html;
+            preview.classList.remove('hidden');
+            document.getElementById('btnConfirmImport-settings').disabled = false;
+            document.getElementById('btnConfirmImport-settings').classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+
+        function clearImportPreview() {
+            pendingImportData = null;
+            document.getElementById('importPreview-settings').classList.add('hidden');
+            document.getElementById('importFileInput-settings').value = '';
+            document.getElementById('btnConfirmImport-settings').disabled = true;
+            document.getElementById('btnConfirmImport-settings').classList.add('opacity-50', 'cursor-not-allowed');
+        }
+
+        function importData() {
+            if (!pendingImportData) return;
+            
+            try {
+                if (pendingImportData.folders) {
+                    if (confirm(`Restore full backup?\nThis will replace current ${folders.length} folders and ${noteFolders.length} note folders.`)) {
+                        folders = pendingImportData.folders;
+                        if (pendingImportData.noteFolders) noteFolders = pendingImportData.noteFolders;
+                        if (pendingImportData.typingStats) typingState.stats = pendingImportData.typingStats;
+                        if (pendingImportData.typingHistory) typingState.history = pendingImportData.typingHistory;
+                        saveFolders();
+                        saveNoteFolders();
+                        localStorage.setItem('typingStats', JSON.stringify(typingState.stats));
+                        localStorage.setItem('typingHistory', JSON.stringify(typingState.history));
+                        location.reload();
+                    }
+                } else if (pendingImportData.words) {
+                    const targetFolder = activeFolderId || folders[0].id;
+                    const folder = folders.find(f => f.id === targetFolder);
+                    let added = 0;
+                    pendingImportData.words.forEach(w => {
+                        const exists = folder.words.some(existing => existing.word.toLowerCase() === w.word.toLowerCase());
+                        if (!exists) {
+                            folder.words.push({
+                                id: 'w' + Date.now() + Math.random().toString(36).substr(2, 9),
+                                word: w.word,
+                                pron: w.pron,
+                                mean: w.mean,
+                                tags: w.tags ||[],
+                                notes: '',
+                                fav: false,
+                                lang: 'en',
+                                created: Date.now()
+                            });
+                            added++;
+                        }
+                    });
+                    saveFolders();
+                    renderFolders();
+                    if (activeFolderId) {
+                        renderWords();
+                        updateDueBadge();
+                    }
+                    updateGlobalStats();
+                    showToast(`${added} words imported successfully`);
+                    closeWindowById(Object.keys(windows).find(key => windows[key].refId === 'settings'));
+                }
+            } catch (err) {
+                alert('Import failed: ' + err.message);
+            }
+            clearImportPreview();
+        }
+
+        function clearAllData() {
+            if (confirm('WARNING: This will delete ALL data including folders, words, notes, and typing history.\n\nAre you absolutely sure?')) {
+                if (confirm('Final confirmation: Type "DELETE" to confirm')) {
+                    localStorage.removeItem('kamusFolders');
+                    localStorage.removeItem('kamusNoteFolders');
+                    localStorage.removeItem('typingStats');
+                    localStorage.removeItem('typingHistory');
+                    showToast('All data cleared. Reloading...');
+                    setTimeout(() => location.reload(), 1500);
+                }
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
